@@ -105,11 +105,19 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-using (var scope = app.Services.CreateScope())
+try
 {
+    using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
     await DefaultAiSeedData.SeedAsync(db);
+}
+catch (Exception ex) when (!app.Environment.IsDevelopment())
+{
+    app.Logger.LogError(
+        ex,
+        "Database initialization failed. The web application will start, but database-backed APIs will be unavailable. " +
+        "Configure ConnectionStrings__DefaultConnection with a PostgreSQL host reachable from Azure App Service.");
 }
 
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
@@ -149,6 +157,38 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+app.MapGet("/api/health", () => Results.Ok(new
+{
+    status = "ok",
+    environment = app.Environment.EnvironmentName,
+    timestamp = DateTimeOffset.UtcNow
+})).AllowAnonymous();
+
+app.MapGet("/api/health/database", async (AppDbContext db, CancellationToken cancellationToken) =>
+{
+    try
+    {
+        var connected = await db.Database.CanConnectAsync(cancellationToken);
+        return connected
+            ? Results.Ok(new { status = "ok", database = "connected" })
+            : Results.Json(
+                new { status = "unavailable", database = "disconnected" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogWarning(ex, "Database health check failed.");
+        return Results.Json(
+            new
+            {
+                status = "unavailable",
+                database = "disconnected",
+                message = "Configure ConnectionStrings__DefaultConnection with an Azure-reachable PostgreSQL server."
+            },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
 
 if (!app.Environment.IsDevelopment())
 {
