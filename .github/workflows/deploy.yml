@@ -15,9 +15,6 @@ jobs:
     name: Deploy combined React and ASP.NET app
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    environment:
-      name: production
-      url: https://language-tutor3.azurewebsites.net
 
     steps:
       - uses: actions/checkout@v6
