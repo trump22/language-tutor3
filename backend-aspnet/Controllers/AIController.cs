@@ -340,7 +340,12 @@ public class AIController : ControllerBase
             var fileName = $"listening_p{part}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
             var audioResult = await _azureSpeech.SynthesizeSpeech(ssml, fileName);
             if (!audioResult.Success)
-                return StatusCode(500, new { message = "Lỗi Azure: " + audioResult.Message });
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new
+                {
+                    success = false,
+                    service = "azure-speech",
+                    message = audioResult.Message
+                });
 
             return Ok(new
             {
@@ -363,6 +368,19 @@ public class AIController : ControllerBase
         catch (JsonException)
         {
             return BadRequest(new { success = false, message = "Gemini trả về JSON không hợp lệ. Hãy thử tạo lại." });
+        }
+        catch (Exception ex)
+        {
+            HttpContext.RequestServices
+                .GetRequiredService<ILogger<AIController>>()
+                .LogError(ex, "Unexpected error while drafting TOEIC listening audio.");
+
+            return StatusCode(StatusCodes.Status500InternalServerError, new
+            {
+                success = false,
+                service = "audio-generation",
+                message = "Máy chủ gặp lỗi khi tạo audio. Kiểm tra cấu hình Azure Speech và thử lại."
+            });
         }
     }
 

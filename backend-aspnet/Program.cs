@@ -190,6 +190,27 @@ app.MapGet("/api/health/database", async (AppDbContext db, CancellationToken can
     }
 }).AllowAnonymous();
 
+app.MapGet("/api/health/speech", (AzureSpeechService speech) =>
+{
+    return speech.IsConfigured
+        ? Results.Ok(new
+        {
+            status = "ok",
+            service = "azure-speech",
+            configured = true,
+            region = speech.Region
+        })
+        : Results.Json(
+            new
+            {
+                status = "unavailable",
+                service = "azure-speech",
+                configured = false,
+                message = "Configure Azure__SpeechKey and Azure__SpeechRegion in App Service."
+            },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+}).AllowAnonymous();
+
 if (!app.Environment.IsDevelopment())
 {
     app.MapFallbackToFile("index.html");

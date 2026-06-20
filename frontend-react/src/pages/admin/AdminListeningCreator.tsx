@@ -51,7 +51,13 @@ export default function AdminListeningCreator() {
       
       setDraftData(response.data.data);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'AI gặp sự cố khi tạo Audio. Hãy thử lại!');
+      const message = err.response?.data?.message;
+      const service = err.response?.data?.service;
+      setError(
+        message
+          ? `${message}${service ? ` [${service}]` : ''}`
+          : 'AI gặp sự cố khi tạo Audio. Hãy thử lại!'
+      );
       console.error(err);
     } finally { 
       setIsLoading(false); 
