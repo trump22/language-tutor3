@@ -1,110 +1,80 @@
-name: Deploy
+name: Deploy Azure App Service
 
 on:
   workflow_dispatch:
 
 jobs:
   deploy:
-    name: Deploy to VPS
+    name: Deploy combined React and ASP.NET app
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    env:
-      VPS_HOST: ${{ secrets.VPS_HOST }}
-      VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_PORT: ${{ secrets.VPS_PORT }}
-      VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
-      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
-      REPOSITORY_URL: https://github.com/${{ github.repository }}.git
+    environment:
+      name: production
+      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+
     steps:
-      - name: Validate deployment secrets
+      - name: Validate Azure deployment settings
+        env:
+          AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
+          AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         run: |
           set -euo pipefail
-          missing=0
 
-          for name in VPS_HOST VPS_USER VPS_SSH_KEY DEPLOY_PATH; do
-            if [ -z "${!name:-}" ]; then
-              echo "::error::Missing GitHub Actions secret: $name"
-              missing=1
-            fi
-          done
-
-          if [ "$missing" -ne 0 ]; then
-            echo "Add the missing secrets in Settings > Secrets and variables > Actions."
+          if [ -z "$AZURE_WEBAPP_NAME" ]; then
+            echo "::error::Missing repository variable AZURE_WEBAPP_NAME."
             exit 1
           fi
 
-          if [[ "$VPS_HOST" == http://* || "$VPS_HOST" == https://* ]]; then
-            echo "::error::VPS_HOST must contain only an IP address or hostname, without http:// or https://"
+          if [ -z "$AZURE_WEBAPP_PUBLISH_PROFILE" ]; then
+            echo "::error::Missing repository secret AZURE_WEBAPP_PUBLISH_PROFILE."
             exit 1
           fi
 
-      - name: Configure and verify SSH
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Build React frontend
+        working-directory: frontend-react
+        env:
+          VITE_API_BASE_URL: /api
         run: |
-          set -euo pipefail
-          VPS_PORT="${VPS_PORT:-22}"
+          npm ci
+          npm run build
 
-          mkdir -p ~/.ssh
-          printf '%s\n' "$VPS_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
-            echo "::error::VPS_SSH_KEY is not a valid private SSH key."
-            exit 1
-          fi
-
-          if ! ssh-keyscan -T 15 -p "$VPS_PORT" -H "$VPS_HOST" > ~/.ssh/known_hosts 2>/dev/null; then
-            echo "::error::Cannot reach SSH on $VPS_HOST:$VPS_PORT. Check the IP, SSH port and firewall."
-            exit 1
-          fi
-
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            -o BatchMode=yes \
-            -o ConnectTimeout=15 \
-            "$VPS_USER@$VPS_HOST" \
-            "echo 'SSH connection successful'"
-
-      - name: Deploy application
+      - name: Copy React build into ASP.NET wwwroot
         run: |
-          set -euo pipefail
-          VPS_PORT="${VPS_PORT:-22}"
+          rm -rf backend-aspnet/wwwroot
+          mkdir -p backend-aspnet/wwwroot
+          cp -R frontend-react/dist/. backend-aspnet/wwwroot/
 
-          ssh \
-            -i ~/.ssh/deploy_key \
-            -p "$VPS_PORT" \
-            "$VPS_USER@$VPS_HOST" \
-            bash -s -- "$DEPLOY_PATH" "$REPOSITORY_URL" << 'EOF'
-          set -euo pipefail
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
 
-          DEPLOY_PATH="$1"
-          REPOSITORY_URL="$2"
+      - name: Publish ASP.NET application
+        working-directory: backend-aspnet
+        run: |
+          dotnet restore
+          dotnet publish languagetutor.csproj \
+            --configuration Release \
+            --no-restore \
+            --output ../publish
 
-          if ! command -v git >/dev/null 2>&1; then
-            echo "ERROR: Git is not installed on the VPS."
-            exit 1
-          fi
+      - name: Verify deployment package
+        run: |
+          test -f publish/languagetutor.dll
+          test -f publish/wwwroot/index.html
 
-          if ! command -v docker >/dev/null 2>&1; then
-            echo "ERROR: Docker is not installed on the VPS."
-            exit 1
-          fi
-
-          if [ ! -d "$DEPLOY_PATH/.git" ]; then
-            mkdir -p "$(dirname "$DEPLOY_PATH")"
-            git clone "$REPOSITORY_URL" "$DEPLOY_PATH"
-          fi
-
-          cd "$DEPLOY_PATH"
-          git pull --ff-only
-
-          if [ ! -f .env ]; then
-            echo "ERROR: $DEPLOY_PATH/.env does not exist."
-            echo "Create it from .env.example and add the production secrets on the VPS."
-            exit 1
-          fi
-
-          docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-          docker image prune -f
-          docker compose -f docker-compose.prod.yml --env-file .env ps
-          EOF
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: publish

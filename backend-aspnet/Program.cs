@@ -115,7 +115,10 @@ using (var scope = app.Services.CreateScope())
 var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
 Directory.CreateDirectory(uploadsPath);
 
-// 8. SERVE STATIC FILES (audio uploads) like Express /uploads.
+// 8. SERVE REACT BUILD AND AUDIO UPLOADS.
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(uploadsPath),
@@ -146,5 +149,10 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();

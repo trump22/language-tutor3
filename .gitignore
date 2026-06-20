@@ -6,6 +6,7 @@ backend-aspnet/obj/
 backend-aspnet/.vs/
 backend-aspnet/artifacts/
 backend-aspnet/uploads/
+backend-aspnet/wwwroot/
 
 frontend-react/node_modules/
 frontend-react/dist/

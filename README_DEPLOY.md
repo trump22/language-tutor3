@@ -1,146 +1,153 @@
-# Language Tutor CI/CD Deploy Workspace
+# Language Tutor CI/CD and Azure Deployment
 
-Folder này là bản riêng để triển khai web production, không ảnh hưởng tới folder Complete Full.
+Folder này là bản triển khai riêng, không ảnh hưởng tới `Complete Full`.
 
-## Cấu trúc
+## Kiến trúc Azure hiện tại
 
-- `backend-aspnet`: ASP.NET API.
-- `frontend-react`: React/Vite frontend.
-- `docker-compose.prod.yml`: chạy PostgreSQL, backend, frontend và Caddy HTTPS.
-- `ops/caddy/Caddyfile`: reverse proxy domain riêng.
-- `.github/workflows`: CI build và deploy qua SSH tới VPS.
-- `tests/LanguageTutor.E2E`: Selenium WebDriver tests bằng .NET/xUnit.
-- `docker-compose.selenium.yml`: môi trường test độc lập gồm PostgreSQL, backend, frontend và Chromium.
+Azure App Service Plan trong portal chỉ là hạ tầng chạy ứng dụng. Cần tạo thêm một Web App bên trong plan.
 
-## Chạy local bằng Docker
+Để phù hợp gói Windows F1, workflow đóng gói thành một ứng dụng:
 
-```powershell
-copy .env.example .env
-```
+- React được build với API URL `/api`.
+- File React `dist` được copy vào `backend-aspnet/wwwroot`.
+- ASP.NET phục vụ cả giao diện React, REST API và `/uploads`.
+- GitHub Actions publish một gói .NET duy nhất lên Azure App Service.
 
-Sửa `.env`, sau đó chạy:
+## Tạo Web App trong Azure Portal
 
-```powershell
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-```
+Tại App Service Plan `plan-language-tutor3`:
 
-## Trỏ tên miền
+1. Chọn `Create Web App` hoặc mở `App Services` và chọn `Create`.
+2. Chọn resource group `trung`.
+3. Chọn một tên Web App duy nhất, ví dụ `language-tutor3-web`.
+4. Publish: `Code`.
+5. Runtime stack: `.NET 8`.
+6. Operating System: `Windows`.
+7. Region: `Malaysia West`.
+8. Chọn App Service Plan đã có: `plan-language-tutor3`.
 
-Trong trang quản lý DNS của domain, tạo bản ghi:
-
-```text
-Type: A
-Name: @
-Value: IP_VPS_CUA_BAN
-TTL: Auto
-```
-
-Nếu dùng subdomain:
+Sau khi tạo, URL mặc định sẽ có dạng:
 
 ```text
-Type: A
-Name: app
-Value: IP_VPS_CUA_BAN
-TTL: Auto
+https://language-tutor3-web.azurewebsites.net
 ```
 
-Sau đó đặt trong `.env`:
+## Cấu hình GitHub
+
+Trong repository GitHub, mở:
 
 ```text
-DOMAIN=your-domain.com
+Settings > Secrets and variables > Actions
 ```
 
-Caddy sẽ tự xin HTTPS certificate khi domain đã trỏ đúng IP VPS và port `80/443` mở.
-
-## Cấu hình secret production
-
-Không commit file `.env`. Trên VPS, tạo `.env` từ `.env.example` và điền:
-
-- `DOMAIN`
-- `POSTGRES_PASSWORD`
-- `JWT_KEY`
-- `GEMINI_API_KEY`
-- `AZURE_SPEECH_KEY`
-- `AZURE_SPEECH_REGION`
-
-## CI/CD GitHub Actions
-
-Trong GitHub repository, thêm các secrets:
+Tạo repository variable:
 
 ```text
-VPS_HOST=IP VPS
-VPS_USER=user SSH
-VPS_SSH_KEY=private SSH key
-DEPLOY_PATH=/duong/dan/project/tren/vps
-VPS_PORT=22 (không bắt buộc)
+AZURE_WEBAPP_NAME=language-tutor3-web
 ```
 
-`VPS_HOST` chỉ được nhập IP hoặc hostname, không thêm `http://`, `https://` hay đường dẫn.
+Tên phải đúng chính xác với Web App, không phải tên App Service Plan.
+
+Trong Azure Web App, mở `Overview` và tải `Get publish profile`. Mở file `.PublishSettings`, copy toàn bộ nội dung và tạo repository secret:
+
+```text
+AZURE_WEBAPP_PUBLISH_PROFILE=<toàn bộ nội dung PublishSettings>
+```
+
+Publish profile là credential nhạy cảm, không commit vào Git.
+
+Nếu nút tải publish profile bị khóa, mở:
+
+```text
+Web App > Configuration > General settings
+```
+
+Bật `SCM Basic Auth Publishing Credentials`, lưu cấu hình rồi tải lại publish profile.
+
+## Cấu hình ứng dụng trên Azure
+
+Trong Web App:
+
+```text
+Settings > Environment variables > App settings
+```
+
+Thêm:
+
+```text
+ConnectionStrings__DefaultConnection
+Jwt__Key
+Gemini__ApiKey
+Gemini__LiteModel
+Gemini__Flash20LiteModel
+Gemini__Flash20Model
+Gemini__FlashModel
+Gemini__ProModel
+Azure__SpeechKey
+Azure__SpeechRegion
+```
+
+Giá trị model:
+
+```text
+Gemini__LiteModel=gemini-2.5-flash-lite
+Gemini__Flash20LiteModel=gemini-2.0-flash-lite
+Gemini__Flash20Model=gemini-2.0-flash
+Gemini__FlashModel=gemini-2.5-flash
+Gemini__ProModel=gemini-2.5-pro
+```
+
+`ConnectionStrings__DefaultConnection` không được dùng `Host=localhost`, vì PostgreSQL không chạy bên trong Azure App Service. Database phải có địa chỉ mạng mà Azure truy cập được.
 
 Ví dụ:
 
 ```text
-VPS_HOST=203.0.113.10
-VPS_USER=ubuntu
-DEPLOY_PATH=/home/ubuntu/language-tutor
-VPS_PORT=22
+Host=DATABASE_HOST;Port=5432;Database=languagetutor_db;Username=DB_USER;Password=DB_PASSWORD;SSL Mode=Require;Trust Server Certificate=true
 ```
 
-`VPS_SSH_KEY` phải là toàn bộ private key, gồm cả:
+Sau khi thêm biến, chọn `Save` và khởi động lại Web App.
+
+## Chạy deployment
+
+Trên GitHub:
 
 ```text
------BEGIN OPENSSH PRIVATE KEY-----
-...
------END OPENSSH PRIVATE KEY-----
+Actions > Deploy Azure App Service > Run workflow
 ```
 
-Public key tương ứng phải có trong file `~/.ssh/authorized_keys` của user trên VPS.
+Workflow sẽ:
 
-Deploy workflow sẽ SSH vào VPS, chạy `git pull`, rồi chạy:
+1. Build React.
+2. Nhúng React vào ASP.NET.
+3. Publish .NET 8.
+4. Kiểm tra package có DLL và `wwwroot/index.html`.
+5. Deploy lên Azure App Service.
 
-```bash
-docker compose -f docker-compose.prod.yml --env-file .env up -d --build
-```
+## Selenium CI
 
-Nếu repository chưa tồn tại tại `DEPLOY_PATH`, workflow sẽ tự clone. Tuy nhiên file `.env` production vẫn phải được tạo trực tiếp trên VPS vì file này không được commit lên GitHub.
+CI chạy khi push vào `main` hoặc tạo Pull Request:
 
-## Kiểm thử Selenium
+- Build backend.
+- Build frontend.
+- Khởi động PostgreSQL, backend, frontend và Chromium bằng Docker.
+- Chạy Selenium end-to-end.
+- Upload `selenium-results`.
 
-Bộ test hiện có:
-
-- Người chưa đăng nhập vào `/dashboard` sẽ được chuyển về `/login`.
-- Học viên có thể đăng ký, vào dashboard, mở khóa học, đăng xuất và đăng nhập lại.
-
-Chạy hoàn toàn bằng Docker:
+Chạy Selenium bằng Docker:
 
 ```powershell
 .\scripts\run-selenium-docker.ps1
 ```
 
-Chạy bằng Chrome cài trên máy khi frontend/backend đã chạy:
+Chạy bằng Chrome local khi frontend/backend đã chạy:
 
 ```powershell
 .\scripts\run-selenium-local.ps1 -BaseUrl http://localhost:5174
 ```
 
-Kết quả `.trx` và ảnh chụp khi test lỗi được lưu trong:
+## Giới hạn F1
 
-```text
-TestResults
-```
-
-Selenium sử dụng Page Object và explicit wait. Selenium Manager tự tìm hoặc tải browser driver khi chạy local; trong CI, test kết nối tới container Chromium.
-
-Trong CI, test container tự chờ tối đa 180 giây cho cả frontend `/` và backend `/api/courses`. Artifact `selenium-results` luôn kèm:
-
-- `selenium.trx`
-- ảnh chụp màn hình nếu test lỗi
-- `docker-compose.log`
-- `docker-compose-ps.txt`
-
-## Lưu ý
-
-- Backend tự chạy migration khi start.
-- Frontend gọi API qua `/api`, Caddy chuyển tiếp tới backend.
-- Upload audio được lưu trong Docker volume `backend_uploads`.
-- PostgreSQL được lưu trong Docker volume `postgres_data`.
+- F1 phù hợp demo và kiểm thử nhẹ.
+- F1 có quota CPU/ngày và có thể dừng app khi hết quota.
+- Custom domain cần App Service Plan trả phí; F1 chỉ dùng tốt với domain `azurewebsites.net`.
+- Database và các dịch vụ Azure khác có thể phát sinh chi phí riêng.
