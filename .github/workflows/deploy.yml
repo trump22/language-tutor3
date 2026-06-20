@@ -60,7 +60,7 @@ jobs:
           test -f publish/wwwroot/index.html
 
       - name: Log in to Azure
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_339C01D3E70A4093A174081D06FBB04C }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D5A69B8957C44651A80C1CC94B0D3EBA }}
