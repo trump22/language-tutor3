@@ -1,0 +1,103 @@
+using System.Net;
+using OpenQA.Selenium;
+using OpenQA.Selenium.Support.UI;
+
+namespace LanguageTutor.E2E.Infrastructure;
+
+public abstract class SeleniumTestBase : IDisposable
+{
+    private static readonly HttpClient HealthClient = new()
+    {
+        Timeout = TimeSpan.FromSeconds(5)
+    };
+
+    protected SeleniumTestBase()
+    {
+        BaseUrl = (Environment.GetEnvironmentVariable("E2E_BASE_URL") ?? "http://localhost:8088").TrimEnd('/');
+        WaitForApplication();
+        Driver = DriverFactory.Create();
+        Wait = new WebDriverWait(Driver, TimeSpan.FromSeconds(15));
+    }
+
+    protected string BaseUrl { get; }
+    protected IWebDriver Driver { get; }
+    protected WebDriverWait Wait { get; }
+
+    protected void RunWithScreenshot(Action test)
+    {
+        try
+        {
+            test();
+        }
+        catch
+        {
+            SaveScreenshot();
+            throw;
+        }
+    }
+
+    protected IWebElement WaitUntilVisible(By locator) =>
+        Wait.Until(driver =>
+        {
+            try
+            {
+                var element = driver.FindElement(locator);
+                return element.Displayed ? element : null;
+            }
+            catch (NoSuchElementException)
+            {
+                return null;
+            }
+            catch (StaleElementReferenceException)
+            {
+                return null;
+            }
+        })!;
+
+    protected void WaitForPath(string path) =>
+        Wait.Until(driver => new Uri(driver.Url).AbsolutePath.StartsWith(path, StringComparison.OrdinalIgnoreCase));
+
+    private void WaitForApplication()
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(90);
+        Exception? lastException = null;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                using var response = HealthClient.GetAsync($"{BaseUrl}/api/courses").GetAwaiter().GetResult();
+                if (response.StatusCode == HttpStatusCode.OK)
+                    return;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+            }
+
+            Thread.Sleep(1500);
+        }
+
+        throw new InvalidOperationException($"Ứng dụng không sẵn sàng tại {BaseUrl}.", lastException);
+    }
+
+    private void SaveScreenshot()
+    {
+        if (Driver is not ITakesScreenshot screenshotDriver)
+            return;
+
+        var outputDirectory = Environment.GetEnvironmentVariable("E2E_SCREENSHOT_DIR")
+            ?? Path.Combine(AppContext.BaseDirectory, "TestResults", "screenshots");
+
+        Directory.CreateDirectory(outputDirectory);
+        var fileName = $"{GetType().Name}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}.png";
+        screenshotDriver.GetScreenshot().SaveAsFile(Path.Combine(outputDirectory, fileName));
+    }
+
+    public void Dispose()
+    {
+        Driver.Quit();
+        Driver.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}

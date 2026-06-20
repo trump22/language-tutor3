@@ -1,0 +1,157 @@
+@import "tailwindcss";
+
+/* Định nghĩa chế độ Dark Mode chuẩn Tailwind v4 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Bảng màu đặc trưng của dự án */
+--color-primary: #1978e5;
+  --color-secondary: #F5A623;
+  --color-ai-glow: #00F2FF;
+  /* Thêm màu nhấn mới */
+  --color-accent-green: #10b981;
+  --color-accent-orange: #f59e0b;
+  
+  --color-background-light: #f6f7f8;
+  --color-background-dark: #111821;
+  --color-text-light: #333333;
+  --color-text-dark: #F8F9FA;
+  --color-border-light: #E9ECEF;
+  --color-border-dark: #1E293B;
+  --color-surface: #f9f9ff;
+  --color-on-surface: #181c22;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f2f3fd;
+  --color-surface-container: #ecedf7;
+  --color-surface-container-high: #e6e8f1;
+  --color-surface-container-highest: #e0e2ec;
+  --color-on-surface-variant: #414753;
+  --color-outline: #717785;
+  --color-outline-variant: #c1c6d5;
+  
+  --color-primary-fixed: #d6e3ff;
+  --color-primary-container: #0873df;
+  --color-inverse-primary: #aac7ff;
+  --color-on-primary-fixed-variant: #00458d;
+  
+  --color-secondary-container: #b7cfff;
+  --color-on-secondary-container: #405882;
+  
+  --color-tertiary: #964400;
+  --color-tertiary-fixed: #ffdbc9;
+  --color-on-tertiary-fixed: #321200;
+  
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  /* Font chữ hiện đại */
+  --font-display: "Plus Jakarta Sans", "Inter", sans-serif;
+}
+
+@layer utilities {
+  /* Hiệu ứng hình nền bảng mạch công nghệ */
+  .filled-icon {
+    font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24 !important;
+  }
+  .circuit-pattern {
+    background-image: radial-gradient(circle, var(--color-primary) 0.5px, transparent 0.5px);
+    background-size: 30px 30px;
+  }
+  
+  .circuit-overlay {
+    background-image: radial-gradient(circle, var(--color-primary) 0.8px, transparent 0.8px);
+    background-size: 40px 40px;
+  }
+
+  /* Hiệu ứng sóng âm khi AI đang nói hoặc nghe */
+  .waveform-bar {
+    background-color: var(--color-primary);
+    border-radius: 9999px;
+    width: 3px;
+    animation: wave 1.2s ease-in-out infinite;
+  }
+
+  /* Hiệu ứng xung nhịp cho nút bấm AI */
+  .ai-pulse {
+    box-shadow: 0 0 0 0 rgba(25, 120, 229, 0.4);
+    animation: pulse 2s infinite;
+  }
+
+  /* Hiệu ứng phát sáng AI */
+  .ai-glow-effect {
+    box-shadow: 0 0 40px -10px rgba(25, 120, 229, 0.4);
+  }
+
+  .gradient-blur {
+    filter: blur(80px);
+  }
+
+  .floating-bubble {
+    box-shadow: 0 0 30px rgba(25, 120, 229, 0.2);
+  }
+
+  /* Hiệu ứng rung khi có lỗi */
+  .animate-shake {
+    animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+  }
+
+  .modal-input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid transparent;
+    background-color: #f2f3fd;
+    padding: 0.875rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #0f172a;
+    outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+  }
+
+  .modal-input::placeholder {
+    color: #9ca3af;
+    font-weight: 600;
+  }
+
+  .modal-input:focus {
+    border-color: color-mix(in srgb, var(--color-primary) 45%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 14%, transparent);
+    background-color: #ffffff;
+  }
+
+  .dark .modal-input {
+    background-color: #0f172a;
+    border-color: #1e293b;
+    color: #f8fafc;
+  }
+
+  .dark .modal-input:focus {
+    background-color: #111827;
+  }
+}
+
+/* Định nghĩa các chuyển động (Keyframes) */
+@keyframes wave {
+  0%, 100% { height: 8px; }
+  50% { height: 24px; }
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(25, 120, 229, 0.7); }
+  70% { box-shadow: 0 0 0 15px rgba(25, 120, 229, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(25, 120, 229, 0); }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+/* Cấu hình cho Icon Material Symbols */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  display: inline-block;
+  line-height: 1;
+}

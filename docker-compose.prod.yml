@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  backend:
+    build:
+      context: ./backend-aspnet
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__DefaultConnection: Host=postgres;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: LanguageTutorAPI
+      Jwt__Audience: LanguageTutorStudents
+      Gemini__ApiKey: ${GEMINI_API_KEY}
+      Gemini__LiteModel: ${GEMINI_LITE_MODEL:-gemini-2.5-flash-lite}
+      Gemini__Flash20LiteModel: ${GEMINI_FLASH20_LITE_MODEL:-gemini-2.0-flash-lite}
+      Gemini__Flash20Model: ${GEMINI_FLASH20_MODEL:-gemini-2.0-flash}
+      Gemini__FlashModel: ${GEMINI_FLASH_MODEL:-gemini-2.5-flash}
+      Gemini__ProModel: ${GEMINI_PRO_MODEL:-gemini-2.5-pro}
+      Azure__SpeechKey: ${AZURE_SPEECH_KEY}
+      Azure__SpeechRegion: ${AZURE_SPEECH_REGION:-eastus}
+      Cors__AllowedOrigins__0: https://${DOMAIN}
+      Cors__AllowedOrigins__1: http://${DOMAIN}
+    volumes:
+      - backend_uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./frontend-react
+      args:
+        VITE_API_BASE_URL: /api
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./ops/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  backend_uploads:
+  caddy_data:
+  caddy_config:

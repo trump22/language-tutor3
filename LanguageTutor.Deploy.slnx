@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/backend-aspnet/">
+    <Project Path="backend-aspnet/languagetutor.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/LanguageTutor.E2E/LanguageTutor.E2E.csproj" />
+  </Folder>
+</Solution>
