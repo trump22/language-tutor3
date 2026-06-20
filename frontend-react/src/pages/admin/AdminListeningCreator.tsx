@@ -232,7 +232,7 @@ export default function AdminListeningCreator() {
               {draftData.imageUrl && draftData.part === 1 && (
                 <div className="bg-white dark:bg-[#1e293b] p-6 rounded-4xl border border-slate-200 dark:border-slate-800 shadow-sm flex justify-center">
                   <img 
-                    src={draftData.imageUrl} 
+                    src={resolveBackendAssetUrl(draftData.imageUrl)}
                     alt="Ảnh TOEIC Part 1 do AI tạo" 
                     className="max-h-112.5 w-full object-contain rounded-2xl border-2 border-slate-100 dark:border-slate-700 bg-slate-50"
                   />
