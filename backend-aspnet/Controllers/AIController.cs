@@ -243,20 +243,47 @@ public class AIController : ControllerBase
 
     // GET /api/ai/learning-coach
     [HttpGet("learning-coach")]
-    public async Task<IActionResult> GetLearningCoach([FromQuery] string? language)
+    public async Task<IActionResult> GetLearningCoach(
+        [FromQuery] string? language,
+        [FromQuery] bool useAi = true)
     {
         var lang = NormalizeAiLanguage(language);
         var profile = await BuildLearningProfile(GetUserId(), lang);
+
+        if (!useAi)
+        {
+            return Ok(new
+            {
+                success = true,
+                source = "data",
+                data = BuildFallbackLearningPlan(profile, lang),
+                profile = BuildProfileSummary(profile)
+            });
+        }
+
         var profileJson = SerializeCoachProfile(profile);
 
         try
         {
-            var plan = await _gemini.GenerateLearningCoachPlan(profileJson, lang);
+            var plan = await _gemini
+                .GenerateLearningCoachPlan(profileJson, lang)
+                .WaitAsync(TimeSpan.FromSeconds(15), HttpContext.RequestAborted);
             return Ok(new
             {
                 success = true,
                 source = "gemini",
                 data = plan,
+                profile = BuildProfileSummary(profile)
+            });
+        }
+        catch (TimeoutException)
+        {
+            return Ok(new
+            {
+                success = true,
+                source = "fallback",
+                message = "Gemini phản hồi chậm nên hệ thống đang dùng lộ trình từ dữ liệu học tập hiện có.",
+                data = BuildFallbackLearningPlan(profile, lang),
                 profile = BuildProfileSummary(profile)
             });
         }

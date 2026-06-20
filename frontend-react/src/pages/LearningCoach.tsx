@@ -79,29 +79,38 @@ export default function LearningCoach() {
   const [source, setSource] = useState('');
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshingAi, setIsRefreshingAi] = useState(false);
   const [isGeneratingGrammar, setIsGeneratingGrammar] = useState(false);
   const [grammarExercises, setGrammarExercises] = useState<GrammarExercise[]>([]);
 
   useEffect(() => {
-    void loadCoach();
+    setPlan(null);
+    setStats(null);
+    void loadCoach(false, true);
   }, [language]);
 
-  const loadCoach = async () => {
-    setIsLoading(true);
+  const loadCoach = async (useAi = false, resetView = false) => {
+    if (resetView || !plan) {
+      setIsLoading(true);
+    } else {
+      setIsRefreshingAi(true);
+    }
+
     setMessage('');
     setGrammarExercises([]);
 
     try {
-      const response = await api.get(`/ai/learning-coach?language=${language}`);
+      const response = await api.get(`/ai/learning-coach?language=${language}&useAi=${useAi}`);
       setPlan(response.data.data);
       setStats(response.data.profile?.stats || null);
-      setSource(response.data.source || 'gemini');
-      setMessage(response.data.source === 'fallback' ? '' : response.data.message || '');
+      setSource(response.data.source || 'data');
+      setMessage(response.data.message || '');
     } catch (error: unknown) {
-      setPlan(null);
+      if (resetView || !plan) setPlan(null);
       setMessage('Không tải được lộ trình cá nhân hóa. Vui lòng kiểm tra backend hoặc đăng nhập lại.');
     } finally {
       setIsLoading(false);
+      setIsRefreshingAi(false);
     }
   };
 
@@ -157,8 +166,12 @@ export default function LearningCoach() {
             <option value="Intermediate">Trung cấp</option>
             <option value="Advanced">Nâng cao</option>
           </select>
-          <button onClick={loadCoach} className="px-5 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest">
-            Làm mới
+          <button
+            onClick={() => void loadCoach(true)}
+            disabled={isRefreshingAi}
+            className="px-5 py-3 rounded-2xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-black uppercase tracking-widest disabled:opacity-60"
+          >
+            {isRefreshingAi ? 'AI đang phân tích...' : 'Làm mới bằng AI'}
           </button>
         </div>
       </header>
