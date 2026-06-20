@@ -337,8 +337,9 @@ public class AIController : ControllerBase
             if (string.IsNullOrWhiteSpace(ssml))
                 return BadRequest(new { message = "Gemini không trả về SSML hợp lệ." });
 
+            var transcript = aiDraft.TryGetProperty("transcript", out var t) ? t.GetString() : null;
             var fileName = $"listening_p{part}_{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}";
-            var audioResult = await _azureSpeech.SynthesizeSpeech(ssml, fileName);
+            var audioResult = await _azureSpeech.SynthesizeSpeech(ssml, fileName, transcript);
             if (!audioResult.Success)
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, new
                 {
@@ -355,7 +356,7 @@ public class AIController : ControllerBase
                     part,
                     audioUrl = $"/{audioResult.AudioPath}",
                     ssml,
-                    transcript = aiDraft.TryGetProperty("transcript", out var t) ? t.GetString() : null,
+                    transcript,
                     questions = aiDraft.TryGetProperty("questions", out var q) ? q : default,
                     imageUrl = aiDraft.TryGetProperty("imageUrl", out var img) ? img.GetString() : null
                 }

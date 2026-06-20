@@ -142,7 +142,10 @@ public class AzureSpeechService
         };
     }
 
-    public async Task<SpeechSynthesisResult2> SynthesizeSpeech(string ssml, string fileName)
+    public async Task<SpeechSynthesisResult2> SynthesizeSpeech(
+        string ssml,
+        string fileName,
+        string? fallbackText = null)
     {
         if (!IsConfigured)
         {
@@ -156,36 +159,27 @@ public class AzureSpeechService
         try
         {
             XDocument.Parse(ssml);
+            var synthesis = await CallSynthesisRestAsync(ssml);
 
-            using var request = new HttpRequestMessage(
-                HttpMethod.Post,
-                $"https://{_speechRegion}.tts.speech.microsoft.com/cognitiveservices/v1");
-            request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _speechKey);
-            request.Headers.TryAddWithoutValidation("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
-            request.Headers.TryAddWithoutValidation("User-Agent", "LanguageTutor");
-            request.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
-
-            using var response = await _httpClientFactory
-                .CreateClient()
-                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
-
-            if (!response.IsSuccessStatusCode)
+            if (!synthesis.Success &&
+                synthesis.StatusCode == HttpStatusCode.BadRequest &&
+                !string.IsNullOrWhiteSpace(fallbackText))
             {
-                var responseBody = await response.Content.ReadAsStringAsync();
                 _logger.LogWarning(
-                    "Azure Speech REST synthesis failed. Region: {Region}, Status: {StatusCode}, Body: {Body}",
-                    _speechRegion,
-                    (int)response.StatusCode,
-                    responseBody);
+                    "Gemini SSML was rejected by Azure Speech. Retrying with normalized single-voice SSML.");
+                synthesis = await CallSynthesisRestAsync(BuildFallbackSsml(fallbackText));
+            }
 
+            if (!synthesis.Success)
+            {
                 return new SpeechSynthesisResult2
                 {
                     Success = false,
-                    Message = BuildRestErrorMessage(response.StatusCode, responseBody)
+                    Message = BuildRestErrorMessage(synthesis.StatusCode, synthesis.ErrorBody)
                 };
             }
 
-            var audioBytes = await response.Content.ReadAsByteArrayAsync();
+            var audioBytes = synthesis.AudioBytes;
             if (audioBytes.Length <= 44)
             {
                 return new SpeechSynthesisResult2
@@ -226,6 +220,55 @@ public class AzureSpeechService
         }
     }
 
+    private async Task<SpeechRestResponse> CallSynthesisRestAsync(string ssml)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://{_speechRegion}.tts.speech.microsoft.com/cognitiveservices/v1");
+        request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _speechKey);
+        request.Headers.TryAddWithoutValidation("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
+        request.Headers.TryAddWithoutValidation("User-Agent", "LanguageTutor");
+        request.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
+
+        using var response = await _httpClientFactory
+            .CreateClient()
+            .SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return new SpeechRestResponse(
+                true,
+                response.StatusCode,
+                await response.Content.ReadAsByteArrayAsync(),
+                "");
+        }
+
+        var responseBody = await response.Content.ReadAsStringAsync();
+        _logger.LogWarning(
+            "Azure Speech REST synthesis failed. Region: {Region}, Status: {StatusCode}, Body: {Body}",
+            _speechRegion,
+            (int)response.StatusCode,
+            responseBody);
+
+        return new SpeechRestResponse(false, response.StatusCode, Array.Empty<byte>(), responseBody);
+    }
+
+    private static string BuildFallbackSsml(string text)
+    {
+        XNamespace synthesis = "http://www.w3.org/2001/10/synthesis";
+        var document = new XDocument(
+            new XElement(
+                synthesis + "speak",
+                new XAttribute("version", "1.0"),
+                new XAttribute(XNamespace.Xml + "lang", "en-US"),
+                new XElement(
+                    synthesis + "voice",
+                    new XAttribute("name", "en-US-JennyNeural"),
+                    text.Trim())));
+
+        return document.ToString(SaveOptions.DisableFormatting);
+    }
+
     private string GetUploadsPath()
     {
         var homePath = Environment.GetEnvironmentVariable("HOME");
@@ -257,6 +300,11 @@ public class AzureSpeechService
 }
 
 public record SpeechServiceHealth(bool Success, string Message, int? ProviderStatus);
+internal record SpeechRestResponse(
+    bool Success,
+    HttpStatusCode StatusCode,
+    byte[] AudioBytes,
+    string ErrorBody);
 
 public class PronunciationResult
 {
