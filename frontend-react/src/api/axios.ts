@@ -20,4 +20,23 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const requestUrl = String(error.config?.url || '');
+    const isLoginRequest = requestUrl.includes('/auth/login');
+
+    if (error.response?.status === 401 && !isLoginRequest) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+
+      if (window.location.pathname !== '/login') {
+        window.location.assign('/login?session=expired');
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export default api;

@@ -66,11 +66,13 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == req.Email);
-        if (user == null) return NotFound(new { message = "User not found" });
+        if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Password))
+            return BadRequest(new { message = "Vui lòng nhập email và mật khẩu." });
 
-        if (!BCrypt.Net.BCrypt.Verify(req.Password, user.Password))
-            return Unauthorized(new { message = "Invalid credentials" });
+        var normalizedEmail = req.Email.Trim().ToLower();
+        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail);
+        if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.Password))
+            return Unauthorized(new { message = "Email hoặc mật khẩu không chính xác." });
 
         var token = GenerateToken(user);
         return Ok(new { token, user = ToDto(user) });

@@ -382,6 +382,14 @@ Trả lời bằng tiếng Việt:
 
     private async Task<string> PostAndReadTextSingleModel(string modelName, object body)
     {
+        if (string.IsNullOrWhiteSpace(_apiKey) ||
+            _apiKey.StartsWith("CHANGE_ME", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new GeminiServiceException(
+                HttpStatusCode.ServiceUnavailable,
+                "Gemini API key is not configured in the deployment environment.");
+        }
+
         var url = $"{BaseUrl}/{modelName}:generateContent?key={_apiKey}";
         var response = await PostWithRetry(url, body);
         return await response.Content.ReadAsStringAsync();

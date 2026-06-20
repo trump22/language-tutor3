@@ -55,8 +55,14 @@ export default function AdminAITools() {
     try {
       const response = await api.post('/ai/generate-exercises', { language, level, topic });
       setExercises(response.data.exercises || response.data);
-    } catch (err) {
-      setError('AI gặp sự cố khi soạn bài. Hãy thử lại!');
+    } catch (err: any) {
+      const message = err.response?.data?.message;
+      const providerStatus = err.response?.data?.providerStatus;
+      setError(
+        message
+          ? `${message}${providerStatus ? ` (Gemini HTTP ${providerStatus})` : ''}`
+          : 'AI gặp sự cố khi soạn bài. Hãy thử lại!'
+      );
     } finally { setIsLoading(false); }
   };
 

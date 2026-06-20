@@ -24,6 +24,15 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function hasExpired(token: string) {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    return typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now();
+  } catch {
+    return true;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -33,14 +42,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = localStorage.getItem('token');
       const savedUser = localStorage.getItem('user');
 
-      if (token && savedUser) {
+      if (token && savedUser && !hasExpired(token)) {
         try {
           setUser(JSON.parse(savedUser));
-          // Sử dụng 'api' ở đây để kiểm tra token (giải quyết lỗi unused 'api')
           console.log("Hệ thống đã sẵn sàng với API:", api.defaults.baseURL);
         } catch (e) {
           logout();
         }
+      } else if (token || savedUser) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
       }
       setLoading(false);
     };
@@ -54,7 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     setUser(null);
   };
 

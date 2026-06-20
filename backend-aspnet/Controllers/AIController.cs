@@ -235,7 +235,7 @@ public class AIController : ControllerBase
             return StatusCode(ToClientStatus(ex.StatusCode), new
             {
                 success = false,
-                message = "Gemini đang quá tải hoặc tạm thời không sẵn sàng. Vui lòng thử lại sau.",
+                message = GetGeminiErrorMessage(ex.StatusCode),
                 providerStatus = (int)ex.StatusCode
             });
         }
@@ -724,6 +724,22 @@ public class AIController : ControllerBase
         var code = (int)statusCode;
         return code is >= 400 and < 600 ? code : StatusCodes.Status502BadGateway;
     }
+
+    private static string GetGeminiErrorMessage(System.Net.HttpStatusCode statusCode) =>
+        statusCode switch
+        {
+            System.Net.HttpStatusCode.BadRequest =>
+                "Gemini từ chối yêu cầu. Hãy kiểm tra Gemini__ApiKey và tên model trong Azure App Service.",
+            System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden =>
+                "Gemini API key không hợp lệ hoặc chưa được cấp quyền.",
+            System.Net.HttpStatusCode.NotFound =>
+                "Model Gemini đang cấu hình không tồn tại hoặc không còn được hỗ trợ.",
+            System.Net.HttpStatusCode.TooManyRequests =>
+                "Gemini đã hết hạn mức hoặc đang giới hạn số lượt gọi. Vui lòng thử lại sau.",
+            System.Net.HttpStatusCode.ServiceUnavailable =>
+                "Gemini chưa được cấu hình hoặc đang tạm thời không sẵn sàng.",
+            _ => "Gemini chưa phản hồi được. Vui lòng thử lại sau."
+        };
 
     private sealed record LearningCoachProfile(
         StudentCoachSnapshot Student,
