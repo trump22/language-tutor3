@@ -1,6 +1,9 @@
 using Microsoft.CognitiveServices.Speech;
 using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.CognitiveServices.Speech.PronunciationAssessment;
+using System.Net;
+using System.Text;
+using System.Xml.Linq;
 namespace languagetutor.Services;
 
 public class AzureSpeechService
@@ -9,16 +12,19 @@ public class AzureSpeechService
     private readonly string _speechRegion;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<AzureSpeechService> _logger;
+    private readonly IHttpClientFactory _httpClientFactory;
 
     public AzureSpeechService(
         IConfiguration config,
         IWebHostEnvironment env,
-        ILogger<AzureSpeechService> logger)
+        ILogger<AzureSpeechService> logger,
+        IHttpClientFactory httpClientFactory)
     {
         _speechKey = config["Azure:SpeechKey"]?.Trim() ?? "";
         _speechRegion = config["Azure:SpeechRegion"]?.Trim() ?? "";
         _env = env;
         _logger = logger;
+        _httpClientFactory = httpClientFactory;
     }
 
     public bool IsConfigured =>
@@ -27,6 +33,41 @@ public class AzureSpeechService
         !string.IsNullOrWhiteSpace(_speechRegion);
 
     public string Region => _speechRegion;
+
+    public async Task<SpeechServiceHealth> CheckHealthAsync(CancellationToken cancellationToken)
+    {
+        if (!IsConfigured)
+        {
+            return new SpeechServiceHealth(
+                false,
+                "Azure Speech chưa được cấu hình.",
+                null);
+        }
+
+        try
+        {
+            using var request = new HttpRequestMessage(
+                HttpMethod.Get,
+                $"https://{_speechRegion}.tts.speech.microsoft.com/cognitiveservices/voices/list");
+            request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _speechKey);
+
+            using var response = await _httpClientFactory
+                .CreateClient()
+                .SendAsync(request, cancellationToken);
+
+            return response.IsSuccessStatusCode
+                ? new SpeechServiceHealth(true, "Azure Speech REST API is reachable.", (int)response.StatusCode)
+                : new SpeechServiceHealth(
+                    false,
+                    BuildRestErrorMessage(response.StatusCode, await response.Content.ReadAsStringAsync(cancellationToken)),
+                    (int)response.StatusCode);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Azure Speech health request failed for region {Region}.", _speechRegion);
+            return new SpeechServiceHealth(false, "Không kết nối được Azure Speech REST API.", null);
+        }
+    }
 
     public async Task<PronunciationResult> AnalyzePronunciation(string wavPath, string referenceText, string language = "en-US")
     {
@@ -114,76 +155,108 @@ public class AzureSpeechService
 
         try
         {
-            var speechConfig = SpeechConfig.FromSubscription(_speechKey, _speechRegion);
-            speechConfig.SetSpeechSynthesisOutputFormat(SpeechSynthesisOutputFormat.Riff16Khz16BitMonoPcm);
+            XDocument.Parse(ssml);
 
-            var uploadsPath = Path.Combine(_env.ContentRootPath, "uploads");
-            Directory.CreateDirectory(uploadsPath);
-            var audioPath = Path.Combine(uploadsPath, $"{fileName}.wav");
+            using var request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"https://{_speechRegion}.tts.speech.microsoft.com/cognitiveservices/v1");
+            request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _speechKey);
+            request.Headers.TryAddWithoutValidation("X-Microsoft-OutputFormat", "riff-16khz-16bit-mono-pcm");
+            request.Headers.TryAddWithoutValidation("User-Agent", "LanguageTutor");
+            request.Content = new StringContent(ssml, Encoding.UTF8, "application/ssml+xml");
 
-            using var audioOutput = AudioConfig.FromWavFileOutput(audioPath);
-            using var synthesizer = new SpeechSynthesizer(speechConfig, audioOutput);
-            using var result = await synthesizer.SpeakSsmlAsync(ssml);
+            using var response = await _httpClientFactory
+                .CreateClient()
+                .SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
 
-            if (result.Reason == ResultReason.SynthesizingAudioCompleted)
+            if (!response.IsSuccessStatusCode)
             {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                _logger.LogWarning(
+                    "Azure Speech REST synthesis failed. Region: {Region}, Status: {StatusCode}, Body: {Body}",
+                    _speechRegion,
+                    (int)response.StatusCode,
+                    responseBody);
+
                 return new SpeechSynthesisResult2
                 {
-                    Success = true,
-                    AudioPath = $"uploads/{fileName}.wav"
+                    Success = false,
+                    Message = BuildRestErrorMessage(response.StatusCode, responseBody)
                 };
             }
 
-            var cancellation = SpeechSynthesisCancellationDetails.FromResult(result);
-            _logger.LogWarning(
-                "Azure Speech synthesis failed. Region: {Region}, Reason: {Reason}, ErrorCode: {ErrorCode}, Details: {Details}",
-                _speechRegion,
-                cancellation.Reason,
-                cancellation.ErrorCode,
-                cancellation.ErrorDetails);
+            var audioBytes = await response.Content.ReadAsByteArrayAsync();
+            if (audioBytes.Length <= 44)
+            {
+                return new SpeechSynthesisResult2
+                {
+                    Success = false,
+                    Message = "Azure Speech trả về file audio rỗng."
+                };
+            }
+
+            var uploadsPath = GetUploadsPath();
+            Directory.CreateDirectory(uploadsPath);
+            var audioPath = Path.Combine(uploadsPath, $"{fileName}.wav");
+            await File.WriteAllBytesAsync(audioPath, audioBytes);
 
             return new SpeechSynthesisResult2
             {
+                Success = true,
+                AudioPath = $"uploads/{fileName}.wav"
+            };
+        }
+        catch (System.Xml.XmlException ex)
+        {
+            _logger.LogWarning(ex, "Gemini returned invalid SSML.");
+            return new SpeechSynthesisResult2
+            {
                 Success = false,
-                Message = BuildSynthesisErrorMessage(cancellation)
+                Message = "Kịch bản SSML do Gemini tạo không hợp lệ. Hãy thử tạo lại."
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Azure Speech SDK threw an exception while creating audio in region {Region}.", _speechRegion);
+            _logger.LogError(ex, "Azure Speech REST synthesis threw an exception in region {Region}.", _speechRegion);
             return new SpeechSynthesisResult2
             {
                 Success = false,
-                Message = "Azure Speech SDK không thể tạo audio. Hãy kiểm tra Speech key, region và cấu hình nền tảng App Service."
+                Message = "Không thể gọi Azure Speech REST API hoặc ghi file audio trên App Service."
             };
         }
     }
 
-    private static string BuildSynthesisErrorMessage(SpeechSynthesisCancellationDetails cancellation)
+    private string GetUploadsPath()
     {
-        var details = cancellation.ErrorDetails ?? "";
-        if (details.Contains("authentication", StringComparison.OrdinalIgnoreCase) ||
-            details.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-            details.Contains("403", StringComparison.OrdinalIgnoreCase))
+        var homePath = Environment.GetEnvironmentVariable("HOME");
+        return string.IsNullOrWhiteSpace(homePath)
+            ? Path.Combine(_env.ContentRootPath, "uploads")
+            : Path.Combine(homePath, "data", "uploads");
+    }
+
+    private static string BuildRestErrorMessage(HttpStatusCode statusCode, string responseBody)
+    {
+        if (statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
             return "Azure Speech từ chối xác thực. Speech key hoặc region không đúng với Speech resource.";
         }
 
-        if (details.Contains("quota", StringComparison.OrdinalIgnoreCase) ||
-            details.Contains("429", StringComparison.OrdinalIgnoreCase))
+        if (statusCode == HttpStatusCode.TooManyRequests)
         {
             return "Azure Speech đã hết quota hoặc đang bị giới hạn số lượt gọi.";
         }
 
-        if (details.Contains("SSML", StringComparison.OrdinalIgnoreCase) ||
-            details.Contains("invalid xml", StringComparison.OrdinalIgnoreCase))
+        if (statusCode == HttpStatusCode.BadRequest ||
+            responseBody.Contains("SSML", StringComparison.OrdinalIgnoreCase))
         {
-            return "Kịch bản SSML do AI tạo không hợp lệ. Hãy thử tạo lại với nội dung ngắn hơn.";
+            return "Azure Speech từ chối SSML hoặc voice đang dùng. Hãy thử tạo lại với nội dung ngắn hơn.";
         }
 
-        return $"Azure Speech không thể tổng hợp audio ({cancellation.ErrorCode}). Kiểm tra Speech key và region.";
+        return $"Azure Speech REST API trả về HTTP {(int)statusCode}.";
     }
 }
+
+public record SpeechServiceHealth(bool Success, string Message, int? ProviderStatus);
 
 public class PronunciationResult
 {

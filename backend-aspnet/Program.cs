@@ -120,7 +120,10 @@ catch (Exception ex) when (!app.Environment.IsDevelopment())
         "Configure ConnectionStrings__DefaultConnection with a PostgreSQL host reachable from Azure App Service.");
 }
 
-var uploadsPath = Path.Combine(app.Environment.ContentRootPath, "uploads");
+var azureHomePath = Environment.GetEnvironmentVariable("HOME");
+var uploadsPath = string.IsNullOrWhiteSpace(azureHomePath)
+    ? Path.Combine(app.Environment.ContentRootPath, "uploads")
+    : Path.Combine(azureHomePath, "data", "uploads");
 Directory.CreateDirectory(uploadsPath);
 
 // 8. SERVE REACT BUILD AND AUDIO UPLOADS.
@@ -190,23 +193,31 @@ app.MapGet("/api/health/database", async (AppDbContext db, CancellationToken can
     }
 }).AllowAnonymous();
 
-app.MapGet("/api/health/speech", (AzureSpeechService speech) =>
+app.MapGet("/api/health/speech", async (
+    AzureSpeechService speech,
+    CancellationToken cancellationToken) =>
 {
-    return speech.IsConfigured
+    var health = await speech.CheckHealthAsync(cancellationToken);
+    return health.Success
         ? Results.Ok(new
         {
             status = "ok",
             service = "azure-speech",
             configured = true,
-            region = speech.Region
+            reachable = true,
+            region = speech.Region,
+            providerStatus = health.ProviderStatus
         })
         : Results.Json(
             new
             {
                 status = "unavailable",
                 service = "azure-speech",
-                configured = false,
-                message = "Configure Azure__SpeechKey and Azure__SpeechRegion in App Service."
+                configured = speech.IsConfigured,
+                reachable = false,
+                region = speech.Region,
+                providerStatus = health.ProviderStatus,
+                message = health.Message
             },
             statusCode: StatusCodes.Status503ServiceUnavailable);
 }).AllowAnonymous();
