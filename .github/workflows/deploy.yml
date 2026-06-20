@@ -1,7 +1,14 @@
 name: Deploy Azure App Service
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -10,26 +17,9 @@ jobs:
     timeout-minutes: 20
     environment:
       name: production
-      url: https://${{ vars.AZURE_WEBAPP_NAME }}.azurewebsites.net
+      url: https://language-tutor3.azurewebsites.net
 
     steps:
-      - name: Validate Azure deployment settings
-        env:
-          AZURE_WEBAPP_NAME: ${{ vars.AZURE_WEBAPP_NAME }}
-          AZURE_WEBAPP_PUBLISH_PROFILE: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "$AZURE_WEBAPP_NAME" ]; then
-            echo "::error::Missing repository variable AZURE_WEBAPP_NAME."
-            exit 1
-          fi
-
-          if [ -z "$AZURE_WEBAPP_PUBLISH_PROFILE" ]; then
-            echo "::error::Missing repository secret AZURE_WEBAPP_PUBLISH_PROFILE."
-            exit 1
-          fi
-
       - uses: actions/checkout@v6
 
       - name: Set up Node.js
@@ -72,9 +62,16 @@ jobs:
           test -f publish/languagetutor.dll
           test -f publish/wwwroot/index.html
 
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_339C01D3E70A4093A174081D06FBB04C }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D5A69B8957C44651A80C1CC94B0D3EBA }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B081B193D7E04D98A6AA84FA3CCC4056 }}
+
       - name: Deploy to Azure App Service
         uses: azure/webapps-deploy@v3
         with:
-          app-name: ${{ vars.AZURE_WEBAPP_NAME }}
-          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          app-name: language-tutor3
+          slot-name: Production
           package: publish
