@@ -15,8 +15,8 @@ jobs:
       run:
         working-directory: backend-aspnet
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
       - run: dotnet restore
@@ -29,8 +29,8 @@ jobs:
       run:
         working-directory: frontend-react
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -45,7 +45,7 @@ jobs:
       - backend
       - frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Run browser tests
         run: |
@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload Selenium results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: selenium-results
           path: TestResults
