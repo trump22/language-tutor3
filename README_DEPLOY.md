@@ -72,13 +72,37 @@ VPS_HOST=IP VPS
 VPS_USER=user SSH
 VPS_SSH_KEY=private SSH key
 DEPLOY_PATH=/duong/dan/project/tren/vps
+VPS_PORT=22 (không bắt buộc)
 ```
+
+`VPS_HOST` chỉ được nhập IP hoặc hostname, không thêm `http://`, `https://` hay đường dẫn.
+
+Ví dụ:
+
+```text
+VPS_HOST=203.0.113.10
+VPS_USER=ubuntu
+DEPLOY_PATH=/home/ubuntu/language-tutor
+VPS_PORT=22
+```
+
+`VPS_SSH_KEY` phải là toàn bộ private key, gồm cả:
+
+```text
+-----BEGIN OPENSSH PRIVATE KEY-----
+...
+-----END OPENSSH PRIVATE KEY-----
+```
+
+Public key tương ứng phải có trong file `~/.ssh/authorized_keys` của user trên VPS.
 
 Deploy workflow sẽ SSH vào VPS, chạy `git pull`, rồi chạy:
 
 ```bash
 docker compose -f docker-compose.prod.yml --env-file .env up -d --build
 ```
+
+Nếu repository chưa tồn tại tại `DEPLOY_PATH`, workflow sẽ tự clone. Tuy nhiên file `.env` production vẫn phải được tạo trực tiếp trên VPS vì file này không được commit lên GitHub.
 
 ## Kiểm thử Selenium
 
