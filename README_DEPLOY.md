@@ -107,6 +107,13 @@ TestResults
 
 Selenium sử dụng Page Object và explicit wait. Selenium Manager tự tìm hoặc tải browser driver khi chạy local; trong CI, test kết nối tới container Chromium.
 
+Trong CI, test container tự chờ tối đa 180 giây cho cả frontend `/` và backend `/api/courses`. Artifact `selenium-results` luôn kèm:
+
+- `selenium.trx`
+- ảnh chụp màn hình nếu test lỗi
+- `docker-compose.log`
+- `docker-compose-ps.txt`
+
 ## Lưu ý
 
 - Backend tự chạy migration khi start.

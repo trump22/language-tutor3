@@ -25,14 +25,32 @@ internal sealed class LoginPage
 
     public void Login(string email, string password)
     {
-        var emailInput = _driver.FindElement(By.Id("email"));
+        var emailInput = WaitUntilVisible(By.Id("email"));
         emailInput.Clear();
         emailInput.SendKeys(email);
 
-        var passwordInput = _driver.FindElement(By.Id("password"));
+        var passwordInput = WaitUntilVisible(By.Id("password"));
         passwordInput.Clear();
         passwordInput.SendKeys(password);
 
-        _driver.FindElement(By.CssSelector("[data-testid='login-submit']")).Click();
+        WaitUntilVisible(By.CssSelector("[data-testid='login-submit']")).Click();
     }
+
+    private IWebElement WaitUntilVisible(By locator) =>
+        _wait.Until(driver =>
+        {
+            try
+            {
+                var element = driver.FindElement(locator);
+                return element.Displayed ? element : null;
+            }
+            catch (NoSuchElementException)
+            {
+                return null;
+            }
+            catch (StaleElementReferenceException)
+            {
+                return null;
+            }
+        })!;
 }

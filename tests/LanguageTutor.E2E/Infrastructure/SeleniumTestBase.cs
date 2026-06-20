@@ -59,15 +59,17 @@ public abstract class SeleniumTestBase : IDisposable
 
     private void WaitForApplication()
     {
-        var deadline = DateTime.UtcNow.AddSeconds(90);
+        var deadline = DateTime.UtcNow.AddSeconds(180);
         Exception? lastException = null;
 
         while (DateTime.UtcNow < deadline)
         {
             try
             {
-                using var response = HealthClient.GetAsync($"{BaseUrl}/api/courses").GetAwaiter().GetResult();
-                if (response.StatusCode == HttpStatusCode.OK)
+                using var frontendResponse = HealthClient.GetAsync($"{BaseUrl}/").GetAwaiter().GetResult();
+                using var apiResponse = HealthClient.GetAsync($"{BaseUrl}/api/courses").GetAwaiter().GetResult();
+                if (frontendResponse.StatusCode == HttpStatusCode.OK &&
+                    apiResponse.StatusCode == HttpStatusCode.OK)
                     return;
             }
             catch (Exception ex)
