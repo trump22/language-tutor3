@@ -17,6 +17,17 @@ interface ListeningDraft {
   imageUrl?: string; // THÊM KHAI BÁO ẢNH CHO PART 1
 }
 
+function resolveBackendAssetUrl(assetUrl: string) {
+  if (/^https?:\/\//i.test(assetUrl)) return assetUrl;
+
+  const apiBaseUrl = api.defaults.baseURL;
+  if (apiBaseUrl && /^https?:\/\//i.test(apiBaseUrl)) {
+    return new URL(assetUrl, apiBaseUrl).toString();
+  }
+
+  return assetUrl.startsWith('/') ? assetUrl : `/${assetUrl}`;
+}
+
 export default function AdminListeningCreator() {
   // Config States
   const [examPartId, setExamPartId] = useState<string>('1'); // ID của Part trong DB
@@ -29,9 +40,6 @@ export default function AdminListeningCreator() {
   const [isSaving, setIsSaving] = useState(false);
   const [draftData, setDraftData] = useState<ListeningDraft | null>(null);
   const [error, setError] = useState('');
-
-  // Lấy Base URL của Backend để gắn vào thẻ <audio>
-  const BACKEND_URL = api.defaults.baseURL?.replace('/api', '') || 'http://localhost:5000';
 
   const handleGenerateListening = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -211,7 +219,12 @@ export default function AdminListeningCreator() {
                 </h4>
                 {/* Custom Audio Player Wrapper for better styling */}
                 <div className="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
-                  <audio controls src={`${BACKEND_URL}${draftData.audioUrl}`} className="w-full outline-none" />
+                  <audio
+                    controls
+                    preload="metadata"
+                    src={resolveBackendAssetUrl(draftData.audioUrl)}
+                    className="w-full outline-none"
+                  />
                 </div>
               </div>
 
