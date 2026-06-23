@@ -176,7 +176,11 @@ public class AIController : ControllerBase
             await using (var stream = System.IO.File.Create(tempPath))
                 await audio.CopyToAsync(stream);
 
-            var result = await _azureSpeech.AnalyzePronunciation(tempPath, referenceText, language ?? "en-US");
+            var result = await _azureSpeech.AnalyzePronunciation(
+                tempPath,
+                referenceText,
+                language ?? "en-US",
+                HttpContext.RequestAborted);
             if (!result.Success)
                 return BadRequest(new { message = result.Message });
 

@@ -1,8 +1,6 @@
-using Microsoft.CognitiveServices.Speech;
-using Microsoft.CognitiveServices.Speech.Audio;
-using Microsoft.CognitiveServices.Speech.PronunciationAssessment;
 using System.Net;
 using System.Text;
+using System.Text.Json;
 using System.Xml.Linq;
 namespace languagetutor.Services;
 
@@ -69,7 +67,11 @@ public class AzureSpeechService
         }
     }
 
-    public async Task<PronunciationResult> AnalyzePronunciation(string wavPath, string referenceText, string language = "en-US")
+    public async Task<PronunciationResult> AnalyzePronunciation(
+        string wavPath,
+        string referenceText,
+        string language = "en-US",
+        CancellationToken cancellationToken = default)
     {
         if (!IsConfigured)
         {
@@ -80,67 +82,222 @@ public class AzureSpeechService
             };
         }
 
-        var speechConfig = SpeechConfig.FromSubscription(_speechKey, _speechRegion);
-        speechConfig.SpeechRecognitionLanguage = language;
-
-        var pronunciationConfig = new PronunciationAssessmentConfig(
-            referenceText,
-            GradingSystem.HundredMark,
-            Granularity.Phoneme,
-            enableMiscue: true)
+        try
         {
-            PhonemeAlphabet = "IPA",
-            NBestPhonemeCount = 3
-        };
-        pronunciationConfig.EnableProsodyAssessment();
-
-        using var audioInput = AudioConfig.FromWavFileInput(wavPath);
-        using var recognizer = new SpeechRecognizer(speechConfig, audioInput);
-        pronunciationConfig.ApplyTo(recognizer);
-
-        var result = await recognizer.RecognizeOnceAsync();
-
-        if (result.Reason == ResultReason.RecognizedSpeech)
-        {
-            var assessment = PronunciationAssessmentResult.FromResult(result);
-            var words = assessment.Words.Select(word => new PronunciationWordResult
+            var audioBytes = await File.ReadAllBytesAsync(wavPath, cancellationToken);
+            var validationMessage = ValidatePronunciationWav(audioBytes);
+            if (validationMessage != null)
             {
-                Word = word.Word,
-                AccuracyScore = word.AccuracyScore,
-                ErrorType = word.ErrorType,
-                Phonemes = word.Phonemes?.Select(p => new PronunciationPhonemeResult
-                {
-                    Phoneme = p.Phoneme,
-                    Score = p.AccuracyScore
-                }).ToList() ?? new List<PronunciationPhonemeResult>()
-            }).ToList();
+                return new PronunciationResult { Success = false, Message = validationMessage };
+            }
 
+            var assessmentConfig = JsonSerializer.Serialize(new
+            {
+                ReferenceText = referenceText.Trim(),
+                GradingSystem = "HundredMark",
+                Granularity = "Phoneme",
+                Dimension = "Comprehensive",
+                EnableMiscue = "True",
+                EnableProsodyAssessment = "True"
+            });
+            var assessmentHeader = Convert.ToBase64String(Encoding.UTF8.GetBytes(assessmentConfig));
+            var requestUrl =
+                $"https://{_speechRegion}.stt.speech.microsoft.com/" +
+                $"speech/recognition/conversation/cognitiveservices/v1" +
+                $"?language={Uri.EscapeDataString(language)}&format=detailed";
+
+            using var request = new HttpRequestMessage(HttpMethod.Post, requestUrl);
+            request.Headers.TryAddWithoutValidation("Ocp-Apim-Subscription-Key", _speechKey);
+            request.Headers.TryAddWithoutValidation("Pronunciation-Assessment", assessmentHeader);
+            request.Headers.TryAddWithoutValidation("Accept", "application/json");
+            request.Content = new ByteArrayContent(audioBytes);
+            request.Content.Headers.TryAddWithoutValidation(
+                "Content-Type",
+                "audio/wav; codecs=audio/pcm; samplerate=16000");
+
+            using var response = await _httpClientFactory
+                .CreateClient()
+                .SendAsync(request, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning(
+                    "Azure pronunciation REST request failed. Region: {Region}, Status: {StatusCode}, Body: {Body}",
+                    _speechRegion,
+                    (int)response.StatusCode,
+                    responseBody);
+                return new PronunciationResult
+                {
+                    Success = false,
+                    Message = BuildPronunciationErrorMessage(response.StatusCode, responseBody)
+                };
+            }
+
+            return ParsePronunciationResponse(responseBody);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
             return new PronunciationResult
             {
-                Success = true,
-                RecognizedText = result.Text,
-                Scores = new PronunciationScores
-                {
-                    PronunciationScore = (float)assessment.PronunciationScore,
-                    AccuracyScore = (float)assessment.AccuracyScore,
-                    FluencyScore = (float)assessment.FluencyScore,
-                    CompletenessScore = (float)assessment.CompletenessScore,
-                    ProsodyScore = (float?)assessment.ProsodyScore
-                },
-                Words = words
+                Success = false,
+                Message = "Azure Speech phản hồi quá chậm. Vui lòng thử lại."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Azure pronunciation REST assessment failed in region {Region}.", _speechRegion);
+            return new PronunciationResult
+            {
+                Success = false,
+                Message = "Không thể phân tích phát âm. Vui lòng kiểm tra file ghi âm và thử lại."
+            };
+        }
+    }
+
+    private static PronunciationResult ParsePronunciationResponse(string responseBody)
+    {
+        using var document = JsonDocument.Parse(responseBody);
+        var root = document.RootElement;
+        var recognitionStatus = GetString(root, "RecognitionStatus");
+        if (!string.Equals(recognitionStatus, "Success", StringComparison.OrdinalIgnoreCase))
+        {
+            var message = recognitionStatus switch
+            {
+                "InitialSilenceTimeout" => "Không phát hiện giọng nói. Hãy nói gần micro và thử lại.",
+                "BabbleTimeout" => "Âm thanh có quá nhiều tiếng ồn. Hãy thử lại ở nơi yên tĩnh.",
+                "NoMatch" => "Không nhận diện được nội dung đã đọc. Hãy chọn đúng ngôn ngữ và đọc lại.",
+                _ => $"Azure Speech không nhận diện được giọng nói ({recognitionStatus ?? "Unknown"})."
+            };
+            return new PronunciationResult { Success = false, Message = message };
+        }
+
+        if (!TryGetProperty(root, "NBest", out var nBest) ||
+            nBest.ValueKind != JsonValueKind.Array ||
+            nBest.GetArrayLength() == 0)
+        {
+            return new PronunciationResult
+            {
+                Success = false,
+                Message = "Azure Speech không trả về dữ liệu chấm phát âm."
             };
         }
 
-        var cancellation = CancellationDetails.FromResult(result);
-        var detail = cancellation.Reason == CancellationReason.Error
-            ? $" {cancellation.ErrorDetails}"
-            : "";
+        var best = nBest[0];
+        var words = new List<PronunciationWordResult>();
+        if (TryGetProperty(best, "Words", out var wordsElement) &&
+            wordsElement.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var wordElement in wordsElement.EnumerateArray())
+            {
+                var phonemes = new List<PronunciationPhonemeResult>();
+                if (TryGetProperty(wordElement, "Phonemes", out var phonemesElement) &&
+                    phonemesElement.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (var phonemeElement in phonemesElement.EnumerateArray())
+                    {
+                        phonemes.Add(new PronunciationPhonemeResult
+                        {
+                            Phoneme = GetString(phonemeElement, "Phoneme") ?? "",
+                            Score = GetDouble(phonemeElement, "AccuracyScore")
+                        });
+                    }
+                }
+
+                words.Add(new PronunciationWordResult
+                {
+                    Word = GetString(wordElement, "Word") ?? "",
+                    AccuracyScore = GetDouble(wordElement, "AccuracyScore"),
+                    ErrorType = GetString(wordElement, "ErrorType") ?? "None",
+                    Phonemes = phonemes
+                });
+            }
+        }
+
         return new PronunciationResult
         {
-            Success = false,
-            Message = $"Không nhận diện được giọng nói: {result.Reason}.{detail}"
+            Success = true,
+            RecognizedText =
+                GetString(best, "Display") ??
+                GetString(root, "DisplayText") ??
+                "",
+            Scores = new PronunciationScores
+            {
+                PronunciationScore = (float)GetDouble(best, "PronScore"),
+                AccuracyScore = (float)GetDouble(best, "AccuracyScore"),
+                FluencyScore = (float)GetDouble(best, "FluencyScore"),
+                CompletenessScore = (float)GetDouble(best, "CompletenessScore"),
+                ProsodyScore = TryGetProperty(best, "ProsodyScore", out var prosody)
+                    ? (float?)GetDouble(prosody)
+                    : null
+            },
+            Words = words
         };
     }
+
+    private static string? ValidatePronunciationWav(byte[] audioBytes)
+    {
+        if (audioBytes.Length < 44 ||
+            Encoding.ASCII.GetString(audioBytes, 0, 4) != "RIFF" ||
+            Encoding.ASCII.GetString(audioBytes, 8, 4) != "WAVE")
+        {
+            return "File ghi âm không phải WAV hợp lệ.";
+        }
+
+        var channels = BitConverter.ToUInt16(audioBytes, 22);
+        var sampleRate = BitConverter.ToUInt32(audioBytes, 24);
+        var bitsPerSample = BitConverter.ToUInt16(audioBytes, 34);
+        if (channels != 1 || sampleRate != 16000 || bitsPerSample != 16)
+        {
+            return "Audio phải là WAV PCM mono, 16 kHz, 16-bit.";
+        }
+
+        var bytesPerSecond = sampleRate * channels * bitsPerSample / 8d;
+        var durationSeconds = (audioBytes.Length - 44) / bytesPerSecond;
+        return durationSeconds > 30
+            ? "Đoạn ghi âm dài hơn 30 giây. Hãy đọc đoạn ngắn hơn."
+            : null;
+    }
+
+    private static string BuildPronunciationErrorMessage(HttpStatusCode statusCode, string responseBody)
+    {
+        if (statusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+            return "Azure Speech từ chối xác thực. Speech key hoặc region không đúng.";
+        if (statusCode == HttpStatusCode.TooManyRequests)
+            return "Azure Speech đã hết quota hoặc đang giới hạn số lượt chấm.";
+        if (statusCode == HttpStatusCode.BadRequest)
+            return "Azure Speech từ chối file audio. Hãy ghi âm dưới 30 giây và thử lại.";
+
+        return string.IsNullOrWhiteSpace(responseBody)
+            ? $"Azure Speech trả về HTTP {(int)statusCode}."
+            : $"Azure Speech không thể chấm phát âm (HTTP {(int)statusCode}).";
+    }
+
+    private static bool TryGetProperty(JsonElement element, string name, out JsonElement value)
+    {
+        foreach (var property in element.EnumerateObject())
+        {
+            if (property.Name.Equals(name, StringComparison.OrdinalIgnoreCase))
+            {
+                value = property.Value;
+                return true;
+            }
+        }
+
+        value = default;
+        return false;
+    }
+
+    private static string? GetString(JsonElement element, string name) =>
+        TryGetProperty(element, name, out var value) && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
+
+    private static double GetDouble(JsonElement element, string name) =>
+        TryGetProperty(element, name, out var value) ? GetDouble(value) : 0;
+
+    private static double GetDouble(JsonElement value) =>
+        value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number) ? number : 0;
 
     public async Task<SpeechSynthesisResult2> SynthesizeSpeech(
         string ssml,
