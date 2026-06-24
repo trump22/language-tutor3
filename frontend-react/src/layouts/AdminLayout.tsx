@@ -80,7 +80,7 @@ export default function AdminLayout() {
                 <p className="text-xs font-bold truncate">{user?.name || 'Admin'}</p>
               </div>
             </div>
-            <button onClick={handleLogout} className="text-slate-400 hover:text-red-500 p-1" title="Đăng xuất">
+            <button data-testid="logout-submit" onClick={handleLogout} className="text-slate-400 hover:text-red-500 p-1" title="Đăng xuất">
               <span className="material-symbols-outlined text-sm">logout</span>
             </button>
           </div>

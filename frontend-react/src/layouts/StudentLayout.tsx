@@ -72,7 +72,7 @@ export default function StudentLayout() {
                 <p className="text-[10px] text-slate-500 uppercase font-bold tracking-tighter">Gói học viên</p>
               </div>
             </div>
-            <button onClick={handleLogout} className="w-full py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase text-red-500 hover:bg-red-50 transition-colors">
+            <button data-testid="logout-submit" onClick={handleLogout} className="w-full py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-black uppercase text-red-500 hover:bg-red-50 transition-colors">
               Đăng xuất
             </button>
           </div>

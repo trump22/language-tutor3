@@ -1,9 +1,11 @@
 name: Deploy Azure App Service
 
 on:
-  push:
-    branches:
-      - main
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
   workflow_dispatch:
 
 permissions:
@@ -15,9 +17,12 @@ jobs:
     name: Deploy combined React and ASP.NET app
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    if: github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
 
     steps:
       - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -72,3 +77,18 @@ jobs:
           app-name: language-tutor3
           slot-name: Production
           package: publish
+
+      - name: Smoke test deployed app
+        env:
+          APP_URL: https://language-tutor3-drd9e8d7a4afachz.malaysiawest-01.azurewebsites.net
+        run: |
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors "$APP_URL/"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors "$APP_URL/api/health"
+          curl --fail --retry 12 --retry-delay 5 --retry-all-errors "$APP_URL/api/health/database"
+
+      - name: Capture external AI diagnostics
+        if: always()
+        env:
+          APP_URL: https://language-tutor3-drd9e8d7a4afachz.malaysiawest-01.azurewebsites.net
+        run: |
+          curl --silent --show-error "$APP_URL/api/health/speech" || true

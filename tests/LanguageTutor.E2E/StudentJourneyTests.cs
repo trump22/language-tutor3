@@ -46,7 +46,7 @@ public sealed class StudentJourneyTests : SeleniumTestBase
             WaitForPath("/courses");
             WaitUntilVisible(By.CssSelector("[data-testid='courses-page']"));
 
-            Driver.FindElement(By.XPath("//button[contains(normalize-space(.), 'Đăng xuất')]")).Click();
+            Driver.FindElement(By.CssSelector("[data-testid='logout-submit']")).Click();
             WaitForPath("/login");
 
             var loginPage = new LoginPage(Driver, Wait, BaseUrl);
