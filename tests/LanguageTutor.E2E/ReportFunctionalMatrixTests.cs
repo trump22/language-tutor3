@@ -20,6 +20,7 @@ public sealed class ReportFunctionalMatrixTests : SeleniumTestBase
     [AllureSeverity(SeverityLevel.critical)]
     [AllureDescription("Bao phu cac test case dang ky trong bao cao: thanh cong, dieu khoan, truong bat buoc va dinh dang du lieu.")]
     [AllureIssue("LT-DK", Title = "LT-DK")]
+    [Trait("Category", "Report53")]
     [InlineData("DK-TC01", "success", "", "")]
     [InlineData("DK-TC02", "terms", "", "dong y")]
     [InlineData("DK-TC03", "skillLevel", "", "control")]
@@ -96,20 +97,27 @@ public sealed class ReportFunctionalMatrixTests : SeleniumTestBase
     [AllureSeverity(SeverityLevel.critical)]
     [AllureDescription("Bao phu dang nhap thanh cong, sai mat khau, sai email, bo trong truong va checkbox ghi nho dang nhap.")]
     [AllureIssue("LT-DN", Title = "LT-DN")]
-    [InlineData("TD-DN-01", "admin", "valid", false, "success-admin")]
-    [InlineData("TD-DN-02", "admin", "valid", true, "success-admin")]
-    [InlineData("TD-DN-03", "admin", "weak", false, "backend-error")]
-    [InlineData("TD-DN-04", "invalid-email", "valid", false, "html5-email")]
-    [InlineData("TD-DN-05", "", "valid", false, "html5-email")]
-    [InlineData("TD-DN-06", "admin", "", false, "html5-password")]
-    [InlineData("TD-DN-07", "unknown", "valid", false, "backend-error")]
-    [InlineData("TD-DN-08", "admin", "wrong", true, "backend-error")]
-    [InlineData("QD-DN-01", "admin", "valid", false, "success-admin")]
-    [InlineData("QD-DN-02", "admin", "valid", true, "success-admin")]
-    [InlineData("QD-DN-03", "admin", "short", false, "backend-error")]
-    [InlineData("QD-DN-04", "", "valid", false, "html5-email")]
-    [InlineData("QD-DN-05", "invalid-email", "valid", true, "html5-email")]
-    [InlineData("QD-DN-06", "admin", "", true, "html5-password")]
+    [Trait("Category", "Report53")]
+    [InlineData("TD-DN-01", "admin", "valid", true, "success-admin")]
+    [InlineData("TD-DN-02", "admin", "valid", false, "success-admin")]
+    [InlineData("TD-DN-03", "admin", "long-lower-no-symbol", false, "backend-error")]
+    [InlineData("TD-DN-04", "admin", "long-symbol-lower", false, "backend-error")]
+    [InlineData("TD-DN-05", "admin", "long-symbol-upper", false, "backend-error")]
+    [InlineData("TD-DN-06", "admin", "long-upper-no-symbol", false, "backend-error")]
+    [InlineData("TD-DN-07", "admin", "short-lower-no-symbol", false, "backend-error")]
+    [InlineData("TD-DN-08", "admin", "short-symbol-lower", false, "backend-error")]
+    [InlineData("TD-DN-09", "admin", "short-symbol-upper", false, "backend-error")]
+    [InlineData("TD-DN-10", "admin", "short-upper-no-symbol", false, "backend-error")]
+    [InlineData("TD-DN-11", "admin", "", false, "html5-password")]
+    [InlineData("TD-DN-12", "short-email", "", false, "html5-email")]
+    [InlineData("TD-DN-13", "", "", true, "html5-email")]
+    [InlineData("TD-DN-14", "", "", false, "html5-email")]
+    [InlineData("QD-DN-01", "admin", "valid", true, "success-admin")]
+    [InlineData("QD-DN-02", "admin", "valid", false, "success-admin")]
+    [InlineData("QD-DN-03", "admin", "short-symbol-lower", false, "backend-error")]
+    [InlineData("QD-DN-04", "admin", "", false, "html5-password")]
+    [InlineData("QD-DN-05", "short-email", "", false, "html5-email")]
+    [InlineData("QD-DN-06", "", "", false, "html5-email")]
     public void LoginReportMatrix(string caseId, string emailMode, string passwordMode, bool remember, string expected)
     {
         RunWithScreenshot(() =>
@@ -121,6 +129,7 @@ public sealed class ReportFunctionalMatrixTests : SeleniumTestBase
             {
                 "admin" => Environment.GetEnvironmentVariable("E2E_ADMIN_EMAIL") ?? "admin@gmail.com",
                 "unknown" => UniqueEmail($"login.{caseId.ToLowerInvariant()}"),
+                "short-email" => "qa",
                 "invalid-email" => "invalid-login-email",
                 _ => string.Empty
             };
@@ -128,8 +137,14 @@ public sealed class ReportFunctionalMatrixTests : SeleniumTestBase
             var password = passwordMode switch
             {
                 "valid" => Environment.GetEnvironmentVariable("E2E_ADMIN_PASSWORD") ?? "Abc@123",
-                "weak" => "minhanhnguyen1998lovecoding2024",
-                "short" => "abc@12",
+                "long-lower-no-symbol" => "minhanhnguyen1998lovecoding2024",
+                "long-symbol-lower" => "minhanh@nguyen1998!lovecoding#24",
+                "long-symbol-upper" => "SuperSecurePasswordOver30Characters!",
+                "long-upper-no-symbol" => "MyStrongPassword2024SecureLoginTest01",
+                "short-lower-no-symbol" => "abc123",
+                "short-symbol-lower" => "abc@12",
+                "short-symbol-upper" => "Hi!2#X",
+                "short-upper-no-symbol" => "Demo99",
                 "wrong" => "WrongPassword@123",
                 _ => string.Empty
             };
@@ -169,6 +184,7 @@ public sealed class ReportFunctionalMatrixTests : SeleniumTestBase
     [AllureSeverity(SeverityLevel.critical)]
     [AllureDescription("Bao phu modal them nguoi dung: tao thanh cong, truong bat buoc, dinh dang email va cac truong tuy chon.")]
     [AllureIssue("LT-ADU", Title = "LT-ADU")]
+    [Trait("Category", "Report53")]
     [InlineData("ADU-TC01", "success", "", "success")]
     [InlineData("ADU-TC02", "skillLevel", "", "control")]
     [InlineData("ADU-TC03", "languagePreference", "", "control")]

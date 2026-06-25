@@ -1,5 +1,6 @@
 param(
-    [string]$BaseUrl = 'http://localhost:5174'
+    [string]$BaseUrl = 'http://localhost:5174',
+    [string]$TestFilter = 'Category=Report53'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,6 +13,7 @@ $env:E2E_SCREENSHOT_DIR = Join-Path $results 'screenshots'
 Remove-Item Env:SELENIUM_REMOTE_URL -ErrorAction SilentlyContinue
 
 dotnet test $testProject `
+    --filter $TestFilter `
     --logger 'trx;LogFileName=selenium-local.trx' `
     --results-directory $results
 
