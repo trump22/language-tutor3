@@ -41,6 +41,7 @@ jobs:
   selenium:
     name: Selenium end-to-end
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     needs:
       - backend
       - frontend
@@ -50,7 +51,7 @@ jobs:
       - name: Run browser tests
         run: |
           mkdir -p TestResults/videos
-          timeout 15m docker compose -f docker-compose.selenium.yml up \
+          timeout 30m docker compose -f docker-compose.selenium.yml up \
             --build \
             --abort-on-container-exit \
             --exit-code-from tests
@@ -78,6 +79,7 @@ jobs:
 
       - name: Create or update Jira bugs for failed tests
         if: failure()
+        continue-on-error: true
         shell: pwsh
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}

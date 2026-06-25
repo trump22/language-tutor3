@@ -1,0 +1,20 @@
+name: Jira Connection Check
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-jira:
+    name: Check Jira secrets and project access
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Check Jira connection
+        shell: pwsh
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: ./scripts/jira-check-connection.ps1
