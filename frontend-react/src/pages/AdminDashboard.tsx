@@ -154,7 +154,7 @@ export default function AdminDashboard() {
             )}
           </div>
           {/* ĐỔI THÀNH ADD USER */}
-          <button onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-all flex items-center gap-2">
+          <button data-testid="admin-add-user-open" onClick={() => setIsAddModalOpen(true)} className="px-4 py-2 bg-primary text-white text-sm font-bold rounded-lg hover:bg-primary/90 transition-all flex items-center gap-2">
             <span className="material-symbols-outlined text-sm">person_add</span> Thêm người dùng
           </button>
         </div>
@@ -353,7 +353,7 @@ function AddUserModal({ onClose, onSuccess }: any) {
   };
 
   return (
-    <div className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/55 backdrop-blur-sm p-4">
+    <div data-testid="admin-add-user-modal" className="fixed inset-0 z-60 flex items-center justify-center bg-slate-950/55 backdrop-blur-sm p-4">
       <div className="w-full max-w-2xl bg-white dark:bg-slate-900 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-800 animate-in zoom-in-95 overflow-hidden text-left">
         <div className="px-8 pt-8 pb-5 flex items-start justify-between">
           <div>
@@ -370,27 +370,27 @@ function AddUserModal({ onClose, onSuccess }: any) {
         <form onSubmit={handleSubmit}>
           <div className="px-8 pb-6 grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-4">
             <ModalField label="Họ và tên">
-              <input required value={formData.name} onChange={(e) => updateField('name', e.target.value)} className="modal-input" placeholder="VD: Eleanor Rigby" />
+              <input data-testid="admin-user-name" required value={formData.name} onChange={(e) => updateField('name', e.target.value)} className="modal-input" placeholder="VD: Eleanor Rigby" />
             </ModalField>
 
             <ModalField label="Email">
-              <input required type="email" value={formData.email} onChange={(e) => updateField('email', e.target.value)} className="modal-input" placeholder="student@example.com" />
+              <input data-testid="admin-user-email" required type="email" value={formData.email} onChange={(e) => updateField('email', e.target.value)} className="modal-input" placeholder="student@example.com" />
             </ModalField>
 
             <ModalField label="Mật khẩu">
-              <input required type="password" value={formData.password} onChange={(e) => updateField('password', e.target.value)} className="modal-input" placeholder="••••••••" />
+              <input data-testid="admin-user-password" required type="password" value={formData.password} onChange={(e) => updateField('password', e.target.value)} className="modal-input" placeholder="••••••••" />
             </ModalField>
 
             <ModalField label="Số điện thoại">
-              <input value={formData.phoneNumber} onChange={(e) => updateField('phoneNumber', e.target.value)} className="modal-input" placeholder="0901234567" />
+              <input data-testid="admin-user-phone" value={formData.phoneNumber} onChange={(e) => updateField('phoneNumber', e.target.value)} className="modal-input" placeholder="0901234567" />
             </ModalField>
 
             <ModalField label="Ngày sinh">
-              <input type="date" value={formData.dateOfBirth} onChange={(e) => updateField('dateOfBirth', e.target.value)} className="modal-input" />
+              <input data-testid="admin-user-dob" type="date" value={formData.dateOfBirth} onChange={(e) => updateField('dateOfBirth', e.target.value)} className="modal-input" />
             </ModalField>
 
             <ModalField label="Giới tính">
-              <select value={formData.gender} onChange={(e) => updateField('gender', e.target.value)} className="modal-input">
+              <select data-testid="admin-user-gender" value={formData.gender} onChange={(e) => updateField('gender', e.target.value)} className="modal-input">
                 <option value="">Chọn giới tính</option>
                 <option value="MALE">Nam</option>
                 <option value="FEMALE">Nữ</option>
@@ -399,25 +399,25 @@ function AddUserModal({ onClose, onSuccess }: any) {
             </ModalField>
 
             <ModalField label="Địa chỉ" className="md:col-span-2">
-              <input value={formData.address} onChange={(e) => updateField('address', e.target.value)} className="modal-input" placeholder="Nhập địa chỉ của bạn" />
+              <input data-testid="admin-user-address" value={formData.address} onChange={(e) => updateField('address', e.target.value)} className="modal-input" placeholder="Nhập địa chỉ của bạn" />
             </ModalField>
 
             <ModalField label="Chức vụ">
-              <select value={formData.role} onChange={(e) => updateField('role', e.target.value)} className="modal-input">
+              <select data-testid="admin-user-role" value={formData.role} onChange={(e) => updateField('role', e.target.value)} className="modal-input">
                 <option value="STUDENT">Học viên</option>
                 <option value="ADMIN">Quản trị viên</option>
               </select>
             </ModalField>
 
             <ModalField label="Ngôn ngữ">
-              <select value={formData.languagePreference} onChange={(e) => updateField('languagePreference', e.target.value)} className="modal-input">
+              <select data-testid="admin-user-language" value={formData.languagePreference} onChange={(e) => updateField('languagePreference', e.target.value)} className="modal-input">
                 <option value="EN">Tiếng Anh</option>
                 <option value="ZH">Tiếng Trung</option>
               </select>
             </ModalField>
 
             <ModalField label="Trình độ">
-              <select value={formData.skillLevel} onChange={(e) => updateField('skillLevel', e.target.value)} className="modal-input">
+              <select data-testid="admin-user-level" value={formData.skillLevel} onChange={(e) => updateField('skillLevel', e.target.value)} className="modal-input">
                 <option value="Beginner">Cơ bản</option>
                 <option value="Intermediate">Trung cấp</option>
                 <option value="Advanced">Nâng cao</option>
@@ -425,11 +425,11 @@ function AddUserModal({ onClose, onSuccess }: any) {
             </ModalField>
 
             <ModalField label="Mục tiêu học tập" className="md:col-span-2">
-              <input value={formData.learningGoal} onChange={(e) => updateField('learningGoal', e.target.value)} className="modal-input" placeholder="VD: Giao tiếp công việc, luyện phát âm, TOEIC..." />
+              <input data-testid="admin-user-goal" value={formData.learningGoal} onChange={(e) => updateField('learningGoal', e.target.value)} className="modal-input" placeholder="VD: Giao tiếp công việc, luyện phát âm, TOEIC..." />
             </ModalField>
 
             {error && (
-              <div className="md:col-span-2 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-300 px-4 py-3 text-sm font-semibold">
+              <div data-testid="admin-add-user-error" className="md:col-span-2 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/50 text-red-600 dark:text-red-300 px-4 py-3 text-sm font-semibold">
                 {error}
               </div>
             )}
@@ -439,7 +439,7 @@ function AddUserModal({ onClose, onSuccess }: any) {
             <button type="button" onClick={onClose} className="px-6 py-3 rounded-xl text-sm font-black text-slate-500 hover:text-slate-900 dark:hover:text-white transition-colors">
               Hủy bỏ
             </button>
-            <button type="submit" disabled={isSaving} className="px-7 py-3 rounded-xl bg-primary text-white text-sm font-black shadow-lg shadow-primary/25 hover:bg-primary/90 disabled:opacity-60 transition-all">
+            <button data-testid="admin-add-user-submit" type="submit" disabled={isSaving} className="px-7 py-3 rounded-xl bg-primary text-white text-sm font-black shadow-lg shadow-primary/25 hover:bg-primary/90 disabled:opacity-60 transition-all">
               {isSaving ? 'Đang lưu...' : 'Lưu người dùng'}
             </button>
           </div>

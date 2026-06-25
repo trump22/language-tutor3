@@ -76,6 +76,16 @@ jobs:
             echo "No Allure results were produced."
           fi
 
+      - name: Create or update Jira bugs for failed tests
+        if: failure()
+        shell: pwsh
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: ./scripts/jira-sync-failed-tests.ps1 -ResultsDirectory TestResults
+
       - name: Upload Selenium results
         if: always()
         uses: actions/upload-artifact@v6

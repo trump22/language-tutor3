@@ -26,6 +26,9 @@ services:
       Gemini__ApiKey: selenium-does-not-call-gemini
       Azure__SpeechKey: selenium-does-not-call-azure
       Azure__SpeechRegion: eastus
+      Seed__AdminEmail: admin@gmail.com
+      Seed__AdminPassword: Abc@123
+      Seed__AdminName: Selenium Admin
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/api/health >/dev/null"]
       interval: 5s
@@ -51,6 +54,9 @@ services:
   selenium:
     image: selenium/standalone-chromium:latest
     shm_size: 2gb
+    ports:
+      - "4444:4444"
+      - "7900:7900"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4444/wd/hub/status | grep -q '\"ready\": true'"]
       interval: 5s
@@ -70,5 +76,8 @@ services:
       E2E_BASE_URL: http://frontend
       SELENIUM_REMOTE_URL: http://selenium:4444/wd/hub
       E2E_SCREENSHOT_DIR: /test-results/screenshots
+      E2E_ADMIN_EMAIL: admin@gmail.com
+      E2E_ADMIN_PASSWORD: Abc@123
+      JIRA_BASE_URL: ${JIRA_BASE_URL:-https://your-jira-domain.atlassian.net}
     volumes:
       - ./TestResults:/test-results

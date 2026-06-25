@@ -161,7 +161,7 @@ export default function AdminAITools() {
               ) : (
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Chọn khóa học đích</label>
-                  <select value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none font-bold text-primary">
+                  <select data-testid="ai-course-select" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none font-bold text-primary">
                     {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                   </select>
                 </div>
@@ -173,14 +173,14 @@ export default function AdminAITools() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Ngôn ngữ</label>
-                    <select value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none">
+                    <select data-testid="ai-language-select" value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none">
                       <option value="EN">Tiếng Anh</option>
                       <option value="ZH">Tiếng Trung</option>
                     </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Trình độ</label>
-                    <select value={level} onChange={(e) => setLevel(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none">
+                    <select data-testid="ai-level-select" value={level} onChange={(e) => setLevel(e.target.value)} className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm outline-none">
                       <option value="Beginner">A1 Cơ bản</option>
                       <option value="Intermediate">B1 Trung cấp</option>
                       <option value="Advanced">C1 Nâng cao</option>
@@ -190,13 +190,14 @@ export default function AdminAITools() {
 
                 <div className="space-y-2">
                   <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Chủ đề bài học</label>
-                  <input type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="VD: Gọi cà phê" className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-1 focus:ring-primary outline-none" required />
+                  <input data-testid="ai-topic-input" type="text" value={topic} onChange={(e) => setTopic(e.target.value)} placeholder="VD: Gọi cà phê" className="w-full bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-xl p-3 text-sm font-bold focus:ring-1 focus:ring-primary outline-none" required />
                 </div>
               </div>
 
               <button 
                 type="submit" 
                 disabled={isLoading || !topic.trim()}
+                data-testid="ai-generate-submit"
                 className="w-full mt-6 bg-primary text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50"
               >
                 {isLoading ? <span className="material-symbols-outlined animate-spin">progress_activity</span> : <span className="material-symbols-outlined">psychology</span>}

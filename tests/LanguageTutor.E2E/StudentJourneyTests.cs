@@ -14,9 +14,12 @@ namespace LanguageTutor.E2E;
 public sealed class StudentJourneyTests : SeleniumTestBase
 {
     [Fact]
+    [AllureName("TC5")]
     [AllureStory("Anonymous access")]
     [AllureSeverity(SeverityLevel.critical)]
-    public void ProtectedDashboard_RedirectsAnonymousUserToLogin()
+    [AllureDescription("Người dùng chưa đăng nhập truy cập dashboard phải bị chuyển về trang đăng nhập.")]
+    [AllureIssue("LT-5", Title = "LT-5")]
+    public void TC5_ProtectedDashboard_RedirectsAnonymousUserToLogin()
     {
         RunWithScreenshot(() =>
         {
@@ -29,9 +32,12 @@ public sealed class StudentJourneyTests : SeleniumTestBase
     }
 
     [Fact]
+    [AllureName("TC6")]
     [AllureStory("Registration and login")]
     [AllureSeverity(SeverityLevel.blocker)]
-    public void StudentCanRegisterBrowseCoursesSignOutAndLoginAgain()
+    [AllureDescription("Học viên có thể đăng ký, xem khóa học, đăng xuất và đăng nhập lại.")]
+    [AllureIssue("LT-6", Title = "LT-6")]
+    public void TC6_StudentCanRegisterBrowseCoursesSignOutAndLoginAgain()
     {
         RunWithScreenshot(() =>
         {

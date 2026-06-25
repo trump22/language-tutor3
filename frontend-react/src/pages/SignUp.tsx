@@ -45,6 +45,40 @@ const initialFormData: SignUpForm = {
 
 const today = new Date().toISOString().split('T')[0];
 
+function validateSignUpForm(data: SignUpForm): string | null {
+  const phoneNumber = data.phoneNumber.replace(/\s/g, '');
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const hasReadableCharacter = /[A-Za-zÀ-ỹ0-9]/u;
+  const hasNameCharacter = /[A-Za-zÀ-ỹ]/u;
+  const strongPasswordPattern = /^(?=.*[A-Z])(?=.*[^A-Za-z0-9]).{8,}$/;
+
+  if (!data.name.trim() || !data.email.trim() || !data.phoneNumber.trim() || !data.address.trim() || !data.password || !data.dateOfBirth) {
+    return 'Vui lòng nhập đầy đủ họ tên, email, số điện thoại, địa chỉ, ngày sinh và mật khẩu.';
+  }
+
+  if (data.name.trim().length < 2 || !hasNameCharacter.test(data.name) || /^\d+$/.test(data.name.trim())) {
+    return 'Vui lòng nhập họ và tên hợp lệ.';
+  }
+
+  if (!emailPattern.test(data.email.trim())) {
+    return 'Vui lòng nhập email hợp lệ.';
+  }
+
+  if (!/^\d{10,11}$/.test(phoneNumber)) {
+    return 'Vui lòng nhập số điện thoại hợp lệ.';
+  }
+
+  if (data.address.trim().length < 3 || !hasReadableCharacter.test(data.address)) {
+    return 'Vui lòng nhập địa chỉ hợp lệ.';
+  }
+
+  if (!strongPasswordPattern.test(data.password)) {
+    return 'Vui lòng nhập mật khẩu hợp lệ: tối thiểu 8 ký tự, có chữ in hoa và ký tự đặc biệt.';
+  }
+
+  return null;
+}
+
 export default function SignUp() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -62,6 +96,12 @@ export default function SignUp() {
 
     if (!acceptedTerms) {
       setError('Bạn cần đồng ý với điều khoản dịch vụ và chính sách bảo mật.');
+      return;
+    }
+
+    const validationMessage = validateSignUpForm(formData);
+    if (validationMessage) {
+      setError(validationMessage);
       return;
     }
 

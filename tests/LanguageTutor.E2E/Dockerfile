@@ -6,4 +6,4 @@ RUN dotnet restore
 
 COPY . ./
 
-ENTRYPOINT ["/bin/sh", "-c", "mkdir -p /test-results/allure-results && printf '{\"allure\":{\"directory\":\"/test-results/allure-results\"}}' > /test-results/allureConfig.json && ALLURE_CONFIG=/test-results/allureConfig.json dotnet test --no-restore --logger 'trx;LogFileName=selenium.trx' --results-directory /test-results -- xUnit.ReporterSwitch=allure"]
+ENTRYPOINT ["/bin/sh", "-c", "mkdir -p /test-results/allure-results && JIRA_BASE_URL=${JIRA_BASE_URL:-https://your-jira-domain.atlassian.net} && printf '{\"allure\":{\"directory\":\"/test-results/allure-results\",\"links\":[\"%s/browse/{issue}\"]}}' \"$JIRA_BASE_URL\" > /test-results/allureConfig.json && ALLURE_CONFIG=/test-results/allureConfig.json dotnet test --no-restore --logger 'trx;LogFileName=selenium.trx' --results-directory /test-results -- xUnit.ReporterSwitch=allure"]

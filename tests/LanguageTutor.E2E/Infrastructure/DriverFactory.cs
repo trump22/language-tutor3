@@ -9,7 +9,14 @@ internal static class DriverFactory
     public static IWebDriver Create()
     {
         var options = new ChromeOptions();
-        options.AddArgument("--headless=new");
+        var headless = !string.Equals(
+            Environment.GetEnvironmentVariable("E2E_HEADLESS"),
+            "false",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (headless)
+            options.AddArgument("--headless=new");
+
         options.AddArgument("--window-size=1440,1100");
         options.AddArgument("--disable-dev-shm-usage");
         options.AddArgument("--no-sandbox");

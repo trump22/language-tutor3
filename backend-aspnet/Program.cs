@@ -111,6 +111,7 @@ try
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.MigrateAsync();
     await DefaultAiSeedData.SeedAsync(db);
+    await ConfiguredSeedData.SeedAsync(db, app.Configuration);
 }
 catch (Exception ex) when (!app.Environment.IsDevelopment())
 {

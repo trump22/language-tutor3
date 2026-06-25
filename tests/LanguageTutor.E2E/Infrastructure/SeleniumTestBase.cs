@@ -58,6 +58,66 @@ public abstract class SeleniumTestBase : IDisposable
     protected void WaitForPath(string path) =>
         Wait.Until(driver => new Uri(driver.Url).AbsolutePath.StartsWith(path, StringComparison.OrdinalIgnoreCase));
 
+    protected void Fill(By locator, string value)
+    {
+        var input = WaitUntilVisible(locator);
+        input.Clear();
+        input.SendKeys(value);
+    }
+
+    protected void SelectByValue(By locator, string value) =>
+        new SelectElement(WaitUntilVisible(locator)).SelectByValue(value);
+
+    protected bool HasHtmlValidationError(By locator)
+    {
+        var element = WaitUntilVisible(locator);
+        var isValid = ((IJavaScriptExecutor)Driver)
+            .ExecuteScript("return arguments[0].checkValidity();", element) as bool? ?? false;
+        return !isValid;
+    }
+
+    protected string GetHtmlValidationMessage(By locator)
+    {
+        var element = WaitUntilVisible(locator);
+        return ((IJavaScriptExecutor)Driver)
+            .ExecuteScript("return arguments[0].validationMessage;", element) as string ?? string.Empty;
+    }
+
+    protected bool ElementExists(By locator)
+    {
+        try
+        {
+            return Driver.FindElement(locator).Displayed;
+        }
+        catch (NoSuchElementException)
+        {
+            return false;
+        }
+    }
+
+    protected void WaitUntilMissing(By locator) =>
+        Wait.Until(driver =>
+        {
+            try
+            {
+                return !driver.FindElement(locator).Displayed;
+            }
+            catch (NoSuchElementException)
+            {
+                return true;
+            }
+            catch (StaleElementReferenceException)
+            {
+                return true;
+            }
+        });
+
+    protected static string UniqueEmail(string prefix)
+    {
+        var suffix = $"{DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()}-{Guid.NewGuid():N}"[..20];
+        return $"{prefix}.{suffix}@example.test";
+    }
+
     private void WaitForApplication()
     {
         var deadline = DateTime.UtcNow.AddSeconds(180);

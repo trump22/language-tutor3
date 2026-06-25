@@ -1,0 +1,10 @@
+services:
+  selenium:
+    environment:
+      SE_START_VNC: "true"
+      SE_START_NO_VNC: "true"
+      SE_NODE_SESSION_TIMEOUT: "600"
+
+  tests:
+    environment:
+      E2E_HEADLESS: "false"

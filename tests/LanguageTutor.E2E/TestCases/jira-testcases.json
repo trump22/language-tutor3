@@ -1,0 +1,110 @@
+[
+  {
+    "key": "LT-1",
+    "summary": "TC1 - Frontend root route returns success",
+    "description": "Verify the deployed frontend root route loads successfully.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-2",
+    "summary": "TC2 - API health endpoint returns success",
+    "description": "Verify /api/health returns HTTP 200.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-3",
+    "summary": "TC3 - Database health endpoint returns success",
+    "description": "Verify /api/health/database returns HTTP 200 when the test database is reachable.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-4",
+    "summary": "TC4 - Courses API returns success",
+    "description": "Verify /api/courses returns HTTP 200.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-5",
+    "summary": "TC5 - Anonymous dashboard access redirects to login",
+    "description": "Verify an unauthenticated user navigating to /dashboard is redirected to /login.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-6",
+    "summary": "TC6 - Student registration and login journey",
+    "description": "Verify a student can register, open courses, sign out, and sign in again.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-7",
+    "summary": "TC7 - Sign up requires terms agreement",
+    "description": "Based on report sign-up TC2: registration must show an error when the user does not accept terms.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-8",
+    "summary": "TC8 - Sign up rejects invalid email format",
+    "description": "Based on report sign-up TC13: invalid email format must be blocked before registration is submitted.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-9",
+    "summary": "TC9 - Sign up rejects weak password",
+    "description": "Based on report sign-up TC7: weak password must show a password validation error.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-10",
+    "summary": "TC10 - Sign up rejects invalid phone number",
+    "description": "Based on report sign-up TC11: invalid phone number must show a validation error.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-11",
+    "summary": "TC11 - Sign up requires full name",
+    "description": "Based on report sign-up TC16: blank full name must be blocked by required validation.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-12",
+    "summary": "TC12 - Admin login redirects to dashboard",
+    "description": "Based on report login success cases: an admin account must be redirected to the admin area after login.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-13",
+    "summary": "TC13 - Login rejects invalid credentials",
+    "description": "Based on report login failure cases: wrong credentials must show a login error.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-14",
+    "summary": "TC14 - Login requires password",
+    "description": "Based on report login blank-password cases: blank password must be blocked by required validation.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-15",
+    "summary": "TC15 - Admin can create a student",
+    "description": "Based on report add-user TC1: admin can create a student from the add-user modal.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-16",
+    "summary": "TC16 - Admin add-user rejects invalid email",
+    "description": "Based on report add-user TC14: invalid email in the add-user modal must be blocked by validation.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-17",
+    "summary": "TC17 - AI exercise creator requires topic",
+    "description": "Based on report exercise TC15: AI exercise creation cannot be submitted without a topic.",
+    "type": "Task"
+  },
+  {
+    "key": "LT-18",
+    "summary": "TC18 - AI exercise creator exposes language and level controls",
+    "description": "Based on report exercise TC8/TC9: language and level controls are available before generating exercises.",
+    "type": "Task"
+  }
+]
