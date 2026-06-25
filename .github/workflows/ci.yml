@@ -105,3 +105,53 @@ jobs:
       - name: Stop test environment
         if: always()
         run: docker compose -f docker-compose.selenium.yml down -v --remove-orphans
+
+  zap:
+    name: OWASP ZAP security scan
+    runs-on: ubuntu-latest
+    needs:
+      - backend
+      - frontend
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          mkdir -p TestResults/zap
+          timeout 15m docker compose \
+            -f docker-compose.selenium.yml \
+            -f docker-compose.zap.yml \
+            up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from zap \
+            zap
+
+      - name: Collect ZAP Docker diagnostics
+        if: always()
+        run: |
+          mkdir -p TestResults/zap
+          docker compose \
+            -f docker-compose.selenium.yml \
+            -f docker-compose.zap.yml \
+            ps -a > TestResults/zap/docker-compose-ps.txt 2>&1 || true
+          docker compose \
+            -f docker-compose.selenium.yml \
+            -f docker-compose.zap.yml \
+            logs --no-color --timestamps > TestResults/zap/docker-compose.log 2>&1 || true
+
+      - name: Upload ZAP security report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: zap-security-report
+          path: TestResults/zap
+          if-no-files-found: ignore
+
+      - name: Stop ZAP test environment
+        if: always()
+        run: |
+          docker compose \
+            -f docker-compose.selenium.yml \
+            -f docker-compose.zap.yml \
+            down -v --remove-orphans

@@ -1,0 +1,21 @@
+services:
+  zap:
+    image: ghcr.io/zaproxy/zaproxy:stable
+    depends_on:
+      frontend:
+        condition: service_healthy
+    command:
+      - zap-baseline.py
+      - -t
+      - http://frontend
+      - -r
+      - zap-report.html
+      - -J
+      - zap-report.json
+      - -w
+      - zap-report.md
+      - -I
+      - -m
+      - "5"
+    volumes:
+      - ./TestResults/zap:/zap/wrk

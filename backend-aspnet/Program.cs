@@ -132,11 +132,25 @@ app.Use(async (context, next) =>
 {
     context.Response.OnStarting(() =>
     {
+        var headers = context.Response.Headers;
+        headers.TryAdd("X-Frame-Options", "DENY");
+        headers.TryAdd("X-Content-Type-Options", "nosniff");
+        headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+        headers.TryAdd("Permissions-Policy", "camera=(), geolocation=(), microphone=(self)");
+        headers.TryAdd(
+            "Content-Security-Policy",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://flagcdn.com https://images.unsplash.com https://lh3.googleusercontent.com; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+
+        if (context.Request.IsHttps)
+        {
+            headers.TryAdd("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+        }
+
         if (context.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
         {
-            context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
-            context.Response.Headers.Pragma = "no-cache";
-            context.Response.Headers.Expires = "0";
+            headers.CacheControl = "no-cache, no-store, must-revalidate";
+            headers.Pragma = "no-cache";
+            headers.Expires = "0";
         }
 
         return Task.CompletedTask;
