@@ -49,6 +49,92 @@ function New-AdfCodeBlock([string] $text) {
     }
 }
 
+function New-SafeFileName([string] $value) {
+    $safe = $value -replace "[^a-zA-Z0-9_.-]", "_"
+    if ($safe.Length -gt 80) {
+        $safe = $safe.Substring(0, 80)
+    }
+
+    return $safe.Trim("_")
+}
+
+function Save-FailedTestLog(
+    [string] $OutputDirectory,
+    [string] $TestCaseId,
+    [string] $TestName,
+    [string] $Outcome,
+    [string] $Duration,
+    [string] $RunLink,
+    [string] $Message,
+    [string] $StackTrace
+) {
+    if (-not (Test-Path -LiteralPath $OutputDirectory)) {
+        New-Item -ItemType Directory -Path $OutputDirectory | Out-Null
+    }
+
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $safeTestCaseId = New-SafeFileName $TestCaseId
+    $safeTestName = New-SafeFileName $TestName
+    $fileName = "${safeTestCaseId}_${timestamp}_${safeTestName}.log"
+    $path = Join-Path $OutputDirectory $fileName
+
+    $content = @"
+Language Tutor automated test failure
+=====================================
+
+Test case: $TestCaseId
+Test name: $TestName
+Outcome: $Outcome
+Duration: $Duration
+Run: $RunLink
+Created at UTC: $([DateTimeOffset]::UtcNow.ToString("u"))
+
+Error message
+-------------
+$Message
+
+Stack trace
+-----------
+$StackTrace
+"@
+
+    Set-Content -LiteralPath $path -Value $content -Encoding utf8
+    return $path
+}
+
+function Add-JiraAttachment(
+    [string] $IssueKey,
+    [string] $FilePath,
+    [string] $JiraRoot,
+    [hashtable] $BaseHeaders
+) {
+    if (-not (Test-Path -LiteralPath $FilePath)) {
+        Write-Host "[jira-sync] Attachment file not found: $FilePath"
+        return
+    }
+
+    $attachmentHeaders = @{
+        Authorization = $BaseHeaders.Authorization
+        Accept = "application/json"
+        "X-Atlassian-Token" = "no-check"
+    }
+
+    try {
+        Invoke-RestMethod `
+            -Method Post `
+            -Uri "$JiraRoot/rest/api/3/issue/$IssueKey/attachments" `
+            -Headers $attachmentHeaders `
+            -Form @{
+                file = Get-Item -LiteralPath $FilePath
+            } | Out-Null
+
+        Write-Host "[jira-sync] Attached $(Split-Path -Leaf $FilePath) to $IssueKey"
+    }
+    catch {
+        Write-Host "[jira-sync] Could not attach $(Split-Path -Leaf $FilePath) to ${IssueKey}: $($_.Exception.Message)"
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($JiraBaseUrl) -or
     [string]::IsNullOrWhiteSpace($JiraEmail) -or
     [string]::IsNullOrWhiteSpace($JiraApiToken) -or
@@ -84,6 +170,7 @@ $headers = @{
 }
 
 $jiraRoot = $JiraBaseUrl.TrimEnd("/")
+$attachmentDirectory = Join-Path $ResultsDirectory "jira-attachments"
 
 foreach ($result in $failedResults) {
     $testName = [string] $result.testName
@@ -123,6 +210,16 @@ foreach ($result in $failedResults) {
         )
     }
 
+    $attachmentPath = Save-FailedTestLog `
+        -OutputDirectory $attachmentDirectory `
+        -TestCaseId $tcId `
+        -TestName $testName `
+        -Outcome $outcome `
+        -Duration $duration `
+        -RunLink $runLink `
+        -Message $message `
+        -StackTrace $stackTrace
+
     $jql = "project = $ProjectKey AND labels = automated-test-failure AND labels = $tcLabel AND statusCategory != Done ORDER BY created DESC"
     $encodedJql = [Uri]::EscapeDataString($jql)
     $searchUrl = "$jiraRoot/rest/api/3/search/jql?jql=$encodedJql&maxResults=1&fields=key,summary"
@@ -141,6 +238,11 @@ foreach ($result in $failedResults) {
             -Body $commentBody | Out-Null
 
         Write-Host "[jira-sync] Updated $issueKey for $tcId"
+        Add-JiraAttachment `
+            -IssueKey $issueKey `
+            -FilePath $attachmentPath `
+            -JiraRoot $jiraRoot `
+            -BaseHeaders $headers
         continue
     }
 
@@ -165,4 +267,9 @@ foreach ($result in $failedResults) {
         -Body $createBody
 
     Write-Host "[jira-sync] Created $($created.key) for $tcId"
+    Add-JiraAttachment `
+        -IssueKey $created.key `
+        -FilePath $attachmentPath `
+        -JiraRoot $jiraRoot `
+        -BaseHeaders $headers
 }
