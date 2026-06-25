@@ -18,6 +18,15 @@ $trxPath = Get-ChildItem -Path $ResultsDirectory -Filter "*.trx" -Recurse -Error
 Write-Line "## Selenium E2E Summary"
 Write-Line ""
 
+$videoCount = @(Get-ChildItem -Path $ResultsDirectory -Filter "*.mp4" -Recurse -File -ErrorAction SilentlyContinue).Count +
+    @(Get-ChildItem -Path $ResultsDirectory -Filter "*.webm" -Recurse -File -ErrorAction SilentlyContinue).Count
+$screenshotCount = @(Get-ChildItem -Path $ResultsDirectory -Filter "*.png" -Recurse -File -ErrorAction SilentlyContinue).Count
+$jiraAttachmentCount = if (Test-Path -LiteralPath (Join-Path $ResultsDirectory "jira-attachments")) {
+    @(Get-ChildItem -Path (Join-Path $ResultsDirectory "jira-attachments") -File -ErrorAction SilentlyContinue).Count
+} else {
+    0
+}
+
 if (-not $trxPath) {
     $allureResultsDirectory = Join-Path $ResultsDirectory "allure-results"
     $allureFiles = @()
@@ -51,6 +60,9 @@ if (-not $trxPath) {
     Write-Line "| Passed | $($passed.Count) |"
     Write-Line "| Failed | $($failed.Count) |"
     Write-Line "| Other | $($broken.Count) |"
+    Write-Line "| Videos | $videoCount |"
+    Write-Line "| Screenshots | $screenshotCount |"
+    Write-Line "| Jira log attachments | $jiraAttachmentCount |"
     Write-Line ""
 
     if ($failed.Count -eq 0) {
@@ -92,6 +104,9 @@ Write-Line "| Total | $($results.Count) |"
 Write-Line "| Passed | $($passed.Count) |"
 Write-Line "| Failed | $($failed.Count) |"
 Write-Line "| Other | $($broken.Count) |"
+Write-Line "| Videos | $videoCount |"
+Write-Line "| Screenshots | $screenshotCount |"
+Write-Line "| Jira log attachments | $jiraAttachmentCount |"
 Write-Line ""
 
 if ($failed.Count -eq 0) {
