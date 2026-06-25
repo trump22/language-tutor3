@@ -1,0 +1,25 @@
+name: Seed Jira Demo Bugs
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_type:
+        description: Jira issue type to create
+        required: true
+        default: Bug
+
+jobs:
+  seed-jira-bugs:
+    name: Create Jira demo bugs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Create 10 sample Jira bugs
+        shell: pwsh
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+          JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        run: ./scripts/jira-create-sample-bugs.ps1 -IssueType "${{ inputs.issue_type }}"
