@@ -31,6 +31,7 @@ flowchart LR
 | Automated test runner | `tests/LanguageTutor.E2E` with xUnit, Selenium WebDriver, and Allure attributes |
 | Test report | `TestResults/selenium.trx`, `TestResults/allure-results`, and generated `TestResults/allure-report` |
 | Logs and artifacts | GitHub Actions uploads the whole `TestResults` directory as `selenium-results` |
+| Test videos | Selenium records browser sessions to `TestResults/videos` |
 | Jira testcase links | Each test uses `AllureIssue("LT-x")` and `tests/LanguageTutor.E2E/TestCases/jira-testcases.json` |
 | Jira bug sync | `scripts/jira-sync-failed-tests.ps1` creates or updates Bug issues only when tests fail |
 
@@ -64,6 +65,14 @@ Open the report:
 ```powershell
 python -m http.server 8089 --directory TestResults\allure-report
 ```
+
+View recorded videos:
+
+```powershell
+explorer TestResults\videos
+```
+
+In GitHub Actions, download the `selenium-results` artifact and open the `.mp4` files inside the `videos` folder.
 
 Run Selenium with a visible browser UI:
 

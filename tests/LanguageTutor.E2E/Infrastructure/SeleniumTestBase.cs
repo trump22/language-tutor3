@@ -1,6 +1,7 @@
 using System.Net;
 using Allure.Net.Commons;
 using OpenQA.Selenium;
+using OpenQA.Selenium.Remote;
 using OpenQA.Selenium.Support.UI;
 
 namespace LanguageTutor.E2E.Infrastructure;
@@ -161,8 +162,50 @@ public abstract class SeleniumTestBase : IDisposable
 
     public void Dispose()
     {
-        Driver.Quit();
-        Driver.Dispose();
+        var sessionId = Driver is RemoteWebDriver remoteDriver
+            ? remoteDriver.SessionId?.ToString()
+            : null;
+
+        try
+        {
+            Driver.Quit();
+            AttachSessionVideo(sessionId);
+        }
+        finally
+        {
+            Driver.Dispose();
+        }
+
         GC.SuppressFinalize(this);
+    }
+
+    private static void AttachSessionVideo(string? sessionId)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId))
+            return;
+
+        var videoDirectory = Environment.GetEnvironmentVariable("E2E_VIDEO_DIR")
+            ?? "/test-results/videos";
+
+        var videoPath = Path.Combine(videoDirectory, $"{sessionId}.mp4");
+        var deadline = DateTime.UtcNow.AddSeconds(15);
+        long previousLength = -1;
+
+        while (DateTime.UtcNow < deadline)
+        {
+            var file = new FileInfo(videoPath);
+            if (file.Exists && file.Length > 0)
+            {
+                if (file.Length == previousLength)
+                {
+                    AllureApi.AddAttachment("Selenium video", "video/mp4", videoPath);
+                    return;
+                }
+
+                previousLength = file.Length;
+            }
+
+            Thread.Sleep(500);
+        }
     }
 }

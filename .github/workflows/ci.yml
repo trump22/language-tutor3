@@ -49,7 +49,7 @@ jobs:
 
       - name: Run browser tests
         run: |
-          mkdir -p TestResults
+          mkdir -p TestResults/videos
           timeout 15m docker compose -f docker-compose.selenium.yml up \
             --build \
             --abort-on-container-exit \

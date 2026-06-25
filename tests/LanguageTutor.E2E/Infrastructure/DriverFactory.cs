@@ -22,6 +22,15 @@ internal static class DriverFactory
         options.AddArgument("--no-sandbox");
         options.AddArgument("--lang=vi-VN");
 
+        if (string.Equals(
+            Environment.GetEnvironmentVariable("E2E_RECORD_VIDEO"),
+            "true",
+            StringComparison.OrdinalIgnoreCase))
+        {
+            options.AddAdditionalOption("se:recordVideo", true);
+            options.AddAdditionalOption("se:screenResolution", "1920x1080");
+        }
+
         var remoteUrl = Environment.GetEnvironmentVariable("SELENIUM_REMOTE_URL");
         IWebDriver driver = string.IsNullOrWhiteSpace(remoteUrl)
             ? new ChromeDriver(options)
