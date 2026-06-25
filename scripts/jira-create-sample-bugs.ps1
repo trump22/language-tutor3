@@ -187,10 +187,10 @@ $jiraRoot = $JiraBaseUrl.TrimEnd("/")
 
 foreach ($bug in $sampleBugs) {
     $jql = "project = $ProjectKey AND labels = demo-seed-bug AND labels = $($bug.Id.ToLowerInvariant()) ORDER BY created DESC"
-    $encodedJql = [System.Web.HttpUtility]::UrlEncode($jql)
+    $encodedJql = [Uri]::EscapeDataString($jql)
     $existing = Invoke-RestMethod `
         -Method Get `
-        -Uri "$jiraRoot/rest/api/3/search?jql=$encodedJql&maxResults=1&fields=key,summary" `
+        -Uri "$jiraRoot/rest/api/3/search/jql?jql=$encodedJql&maxResults=1&fields=key,summary" `
         -Headers $headers
 
     if ($existing.issues.Count -gt 0) {

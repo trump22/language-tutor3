@@ -124,8 +124,8 @@ foreach ($result in $failedResults) {
     }
 
     $jql = "project = $ProjectKey AND labels = automated-test-failure AND labels = $tcLabel AND statusCategory != Done ORDER BY created DESC"
-    $encodedJql = [System.Web.HttpUtility]::UrlEncode($jql)
-    $searchUrl = "$jiraRoot/rest/api/3/search?jql=$encodedJql&maxResults=1&fields=key,summary"
+    $encodedJql = [Uri]::EscapeDataString($jql)
+    $searchUrl = "$jiraRoot/rest/api/3/search/jql?jql=$encodedJql&maxResults=1&fields=key,summary"
     $existing = Invoke-RestMethod -Method Get -Uri $searchUrl -Headers $headers
 
     if ($existing.issues.Count -gt 0) {
