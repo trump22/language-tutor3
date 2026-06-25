@@ -66,6 +66,11 @@ jobs:
             --no-color --timestamps \
             > TestResults/docker-compose.log 2>&1 || true
 
+      - name: Write Selenium short summary
+        if: always()
+        shell: pwsh
+        run: ./scripts/write-selenium-summary.ps1 -ResultsDirectory TestResults
+
       - name: Generate Allure report
         if: always()
         run: |

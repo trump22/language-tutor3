@@ -135,6 +135,104 @@ function Add-JiraAttachment(
     }
 }
 
+function Get-AllureFailureAttachments(
+    [string] $ResultsDirectory,
+    [string] $TestName
+) {
+    $allureResultsDirectory = Join-Path $ResultsDirectory "allure-results"
+    if (-not (Test-Path -LiteralPath $allureResultsDirectory)) {
+        return @()
+    }
+
+    $attachments = New-Object System.Collections.Generic.List[string]
+    $resultFiles = Get-ChildItem -Path $allureResultsDirectory -Filter "*-result.json" -File -ErrorAction SilentlyContinue
+
+    foreach ($file in $resultFiles) {
+        try {
+            $result = Get-Content -LiteralPath $file.FullName -Raw | ConvertFrom-Json
+        }
+        catch {
+            continue
+        }
+
+        $matchesTest = $false
+        if ($result.fullName -and ([string] $result.fullName).Contains($TestName)) {
+            $matchesTest = $true
+        }
+        elseif ($result.name -and ([string] $TestName).Contains([string] $result.name)) {
+            $matchesTest = $true
+        }
+
+        if (-not $matchesTest) {
+            continue
+        }
+
+        foreach ($attachment in @($result.attachments)) {
+            if (-not $attachment.source) {
+                continue
+            }
+
+            $attachmentPath = Join-Path $allureResultsDirectory ([string] $attachment.source)
+            if (Test-Path -LiteralPath $attachmentPath) {
+                $attachments.Add($attachmentPath)
+            }
+        }
+    }
+
+    return $attachments.ToArray()
+}
+
+function Get-RecentFailureMedia(
+    [string] $ResultsDirectory
+) {
+    $patterns = @("*.mp4", "*.webm", "*.png")
+    $media = New-Object System.Collections.Generic.List[string]
+
+    foreach ($pattern in $patterns) {
+        Get-ChildItem -Path $ResultsDirectory -Filter $pattern -Recurse -File -ErrorAction SilentlyContinue |
+            Sort-Object LastWriteTime -Descending |
+            Select-Object -First 2 |
+            ForEach-Object { $media.Add($_.FullName) }
+    }
+
+    return $media.ToArray()
+}
+
+function Add-FailureAttachments(
+    [string] $IssueKey,
+    [string] $LogPath,
+    [string] $ResultsDirectory,
+    [string] $TestName,
+    [string] $JiraRoot,
+    [hashtable] $BaseHeaders
+) {
+    $paths = New-Object System.Collections.Generic.List[string]
+    $paths.Add($LogPath)
+
+    foreach ($path in (Get-AllureFailureAttachments -ResultsDirectory $ResultsDirectory -TestName $TestName)) {
+        $paths.Add($path)
+    }
+
+    if ($paths.Count -eq 1) {
+        foreach ($path in (Get-RecentFailureMedia -ResultsDirectory $ResultsDirectory)) {
+            $paths.Add($path)
+        }
+    }
+
+    $uniquePaths = $paths |
+        Where-Object { Test-Path -LiteralPath $_ } |
+        Select-Object -Unique |
+        Select-Object -First 4
+
+    foreach ($path in $uniquePaths) {
+        Add-JiraAttachment `
+            -IssueKey $IssueKey `
+            -FilePath $path `
+            -JiraRoot $JiraRoot `
+            -BaseHeaders $BaseHeaders
+    }
+}
+
 if ([string]::IsNullOrWhiteSpace($JiraBaseUrl) -or
     [string]::IsNullOrWhiteSpace($JiraEmail) -or
     [string]::IsNullOrWhiteSpace($JiraApiToken) -or
@@ -238,9 +336,11 @@ foreach ($result in $failedResults) {
             -Body $commentBody | Out-Null
 
         Write-Host "[jira-sync] Updated $issueKey for $tcId"
-        Add-JiraAttachment `
+        Add-FailureAttachments `
             -IssueKey $issueKey `
-            -FilePath $attachmentPath `
+            -LogPath $attachmentPath `
+            -ResultsDirectory $ResultsDirectory `
+            -TestName $testName `
             -JiraRoot $jiraRoot `
             -BaseHeaders $headers
         continue
@@ -267,9 +367,11 @@ foreach ($result in $failedResults) {
         -Body $createBody
 
     Write-Host "[jira-sync] Created $($created.key) for $tcId"
-    Add-JiraAttachment `
+    Add-FailureAttachments `
         -IssueKey $created.key `
-        -FilePath $attachmentPath `
+        -LogPath $attachmentPath `
+        -ResultsDirectory $ResultsDirectory `
+        -TestName $testName `
         -JiraRoot $jiraRoot `
         -BaseHeaders $headers
 }
