@@ -1,3 +1,5 @@
+using Allure.Net.Commons;
+using Allure.Net.Commons.Attributes;
 using LanguageTutor.E2E.Infrastructure;
 using LanguageTutor.E2E.Pages;
 using OpenQA.Selenium;
@@ -5,9 +7,15 @@ using OpenQA.Selenium;
 namespace LanguageTutor.E2E;
 
 [Collection("Selenium")]
+[AllureEpic("Language Tutor")]
+[AllureFeature("Student journey")]
+[AllureTag("selenium")]
+[AllureTag("ui")]
 public sealed class StudentJourneyTests : SeleniumTestBase
 {
     [Fact]
+    [AllureStory("Anonymous access")]
+    [AllureSeverity(SeverityLevel.critical)]
     public void ProtectedDashboard_RedirectsAnonymousUserToLogin()
     {
         RunWithScreenshot(() =>
@@ -21,6 +29,8 @@ public sealed class StudentJourneyTests : SeleniumTestBase
     }
 
     [Fact]
+    [AllureStory("Registration and login")]
+    [AllureSeverity(SeverityLevel.blocker)]
     public void StudentCanRegisterBrowseCoursesSignOutAndLoginAgain()
     {
         RunWithScreenshot(() =>

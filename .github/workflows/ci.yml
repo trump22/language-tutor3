@@ -65,12 +65,31 @@ jobs:
             --no-color --timestamps \
             > TestResults/docker-compose.log 2>&1 || true
 
+      - name: Generate Allure report
+        if: always()
+        run: |
+          if [ -d TestResults/allure-results ] && [ "$(find TestResults/allure-results -type f | wc -l)" -gt 0 ]; then
+            npx --yes allure-commandline generate TestResults/allure-results \
+              --clean \
+              --output TestResults/allure-report
+          else
+            echo "No Allure results were produced."
+          fi
+
       - name: Upload Selenium results
         if: always()
         uses: actions/upload-artifact@v6
         with:
           name: selenium-results
           path: TestResults
+          if-no-files-found: ignore
+
+      - name: Upload Allure report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: allure-report
+          path: TestResults/allure-report
           if-no-files-found: ignore
 
       - name: Stop test environment

@@ -6,4 +6,4 @@ RUN dotnet restore
 
 COPY . ./
 
-ENTRYPOINT ["dotnet", "test", "--no-restore", "--logger", "trx;LogFileName=selenium.trx", "--results-directory", "/test-results"]
+ENTRYPOINT ["/bin/sh", "-c", "mkdir -p /test-results/allure-results && printf '{\"allure\":{\"directory\":\"/test-results/allure-results\"}}' > /test-results/allureConfig.json && ALLURE_CONFIG=/test-results/allureConfig.json dotnet test --no-restore --logger 'trx;LogFileName=selenium.trx' --results-directory /test-results -- xUnit.ReporterSwitch=allure"]

@@ -1,7 +1,13 @@
 using System.Net;
+using Allure.Net.Commons;
+using Allure.Net.Commons.Attributes;
 
 namespace LanguageTutor.E2E;
 
+[AllureEpic("Language Tutor")]
+[AllureFeature("API smoke checks")]
+[AllureTag("api")]
+[AllureTag("smoke")]
 public sealed class ApiSmokeTests
 {
     private static readonly HttpClient Client = new()
@@ -17,6 +23,8 @@ public sealed class ApiSmokeTests
     [InlineData("/api/health")]
     [InlineData("/api/health/database")]
     [InlineData("/api/courses")]
+    [AllureStory("Essential routes")]
+    [AllureSeverity(SeverityLevel.critical)]
     public async Task EssentialRoutes_ReturnSuccess(string path)
     {
         using var response = await GetWhenReady(path);

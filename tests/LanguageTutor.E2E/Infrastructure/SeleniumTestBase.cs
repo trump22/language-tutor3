@@ -1,4 +1,5 @@
 using System.Net;
+using Allure.Net.Commons;
 using OpenQA.Selenium;
 using OpenQA.Selenium.Support.UI;
 
@@ -93,7 +94,9 @@ public abstract class SeleniumTestBase : IDisposable
 
         Directory.CreateDirectory(outputDirectory);
         var fileName = $"{GetType().Name}-{DateTime.UtcNow:yyyyMMdd-HHmmssfff}.png";
-        screenshotDriver.GetScreenshot().SaveAsFile(Path.Combine(outputDirectory, fileName));
+        var screenshotPath = Path.Combine(outputDirectory, fileName);
+        screenshotDriver.GetScreenshot().SaveAsFile(screenshotPath);
+        AllureApi.AddAttachment("Failure screenshot", "image/png", screenshotPath);
     }
 
     public void Dispose()
